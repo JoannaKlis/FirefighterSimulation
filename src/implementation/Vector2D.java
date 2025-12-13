@@ -3,8 +3,8 @@ package implementation;
 import interfaces.IVector;
 
 public class Vector2D implements IVector {
-    protected double x; // Używane jako Latitude (szerokość)
-    protected double y; // Używane jako Longitude (długość)
+    protected double x; // szerokość geograficzna
+    protected double y; // długość geograficzna
 
     public Vector2D(double x, double y) {
         this.x = x;

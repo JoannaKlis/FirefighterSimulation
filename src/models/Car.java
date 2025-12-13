@@ -18,7 +18,7 @@ public class Car {
         this.currentState = new FreeState();
     }
 
-    // Delegacja do stanu (Warunek 8)
+    // Delegacja do stan
     public void update() { currentState.update(this); }
     public void dispatch(Vector2D destination, boolean isFalseAlarm) {
         currentState.dispatch(this, destination, isFalseAlarm);

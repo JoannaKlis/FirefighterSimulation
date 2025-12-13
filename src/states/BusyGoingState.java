@@ -6,7 +6,7 @@ import interfaces.ICarState;
 import models.Car;
 import models.CarStatus;
 
-// Stan: Samochód Zajęty (W drodze na akcję lub w drodze powrotnej, Warunek 11)
+// Stan: Samochód Zajęty (W drodze na akcję lub w drodze powrotnej)
 public class BusyGoingState implements ICarState {
     private int remainingSteps;
     private final boolean isFalseAlarm;
@@ -41,12 +41,12 @@ public class BusyGoingState implements ICarState {
                 car.setCurrentPosition(car.getTargetPosition());
 
                 if (isFalseAlarm) {
-                    // Alarm Fałszywy - natychmiast wraca (Warunek 11)
+                    // Alarm Fałszywy - natychmiast wraca
                     car.setTargetPosition(car.getHomePosition());
                     car.setState(new BusyGoingState(true, false)); // false = powrót
                     System.out.printf("[%s] Dojechał (AF). Zaczyna powrót.\n", car.getId());
                 } else {
-                    // Prawdziwe zdarzenie - zaczyna akcję (Warunek 11)
+                    // Prawdziwe zdarzenie - zaczyna akcję
                     car.setState(new BusyActionState());
                     System.out.printf("[%s] Dojechał. Zaczyna akcję (BUSY_ACTION).\n", car.getId());
                 }

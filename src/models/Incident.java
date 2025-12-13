@@ -5,7 +5,7 @@ import constants.SimulationConstants;
 
 public class Incident {
     private final IncidentType type;
-    private final Vector2D position; // Pozycja zdarzenia (Lat/Lon)
+    private final Vector2D position; // pozycja zdarzenia (lat/lon)
 
     public Incident(IncidentType type, Vector2D position) {
         this.type = type;
@@ -20,7 +20,7 @@ public class Incident {
         return position;
     }
 
-    // Określa wymaganą liczbę samochodów na podstawie charakteru zdarzenia (Warunek 7)
+    // określa wymaganą liczbę samochodów na podstawie charakteru zdarzenia
     public int getRequiredCars() {
         if (type == IncidentType.PZ) {
             return SimulationConstants.PZ_CAR_COUNT;

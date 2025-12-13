@@ -3,10 +3,7 @@ package simulation;
 import constants.AreaConstants;
 import constants.SimulationConstants;
 import implementation.Vector2D;
-import models.Car;
-import models.Incident;
-import models.JRG;
-import models.SKKM;
+import models.*;
 
 import javax.swing.*;
 import java.awt.*;
@@ -23,8 +20,10 @@ public class SimulationPanel extends JPanel implements ActionListener {
 
     public SimulationPanel() {
         this.stepCounter = 0;
-        this.jrgs = initializeJRG();
-        this.skkm = new SKKM(this.jrgs);
+        List<JRG> allJrgs = initializeJRG();
+        this.jrgs = allJrgs;
+        // SKKM nadzoruje tylko JRG-1 do JRG-7
+        this.skkm = new SKKM(getJrgsForSKKM(allJrgs));
 
         // GUI setup
         this.setLayout(new BorderLayout());
@@ -42,10 +41,21 @@ public class SimulationPanel extends JPanel implements ActionListener {
         timer.start();
     }
 
+    // Helper do wyodrębnienia JRG-1 do JRG-7 dla SKKM
+    private List<JRG> getJrgsForSKKM(List<JRG> allJrgs) {
+        List<JRG> skkmJrgs = new ArrayList<>();
+        for (JRG jrg : allJrgs) {
+            if (jrg.getName().startsWith("JRG-") && jrg.getName().length() <= 5) {
+                skkmJrgs.add(jrg);
+            }
+        }
+        return skkmJrgs;
+    }
+
     private List<JRG> initializeJRG() {
         List<JRG> list = new ArrayList<>();
 
-        // 7 JRG podlegających SKKM (Warunek 5, 7)
+        // 7 JRG podlegających SKKM
         list.add(new JRG("JRG-1", new Vector2D(50.0599424, 19.9432412)));
         list.add(new JRG("JRG-2", new Vector2D(50.0335189, 19.9358363)));
         list.add(new JRG("JRG-3", new Vector2D(50.0755229, 19.8875822)));
@@ -71,16 +81,26 @@ public class SimulationPanel extends JPanel implements ActionListener {
     private void updateSimulation() {
         stepCounter++;
 
-        // 1. Odbieranie i obsługa zgłoszeń
+        // odbieranie i obsługa zgłoszeń
         if (stepCounter % SimulationConstants.CALL_INTERVAL_STEPS == 0) {
             Incident incident = skkm.receiveCall();
             skkm.handleIncident(incident);
         }
 
-        // 2. Aktualizacja stanu samochodów (Wzorzec Stan)
+        // aktualizacja stanu samochodów (Wzorzec Stan)
         for (JRG jrg : jrgs) {
             jrg.updateCars();
         }
+    }
+
+    // zamiana lat/lon na piksele
+    private Point geoToPixel(double lat, double lon, int panelWidth, int panelHeight) {
+        double latRange = AreaConstants.VIS_MAX_LATITUDE - AreaConstants.VIS_MIN_LATITUDE;
+        double lonRange = AreaConstants.VIS_MAX_LONGITUDE - AreaConstants.VIS_MIN_LONGITUDE;
+
+        int xPixel = (int) ((lon - AreaConstants.VIS_MIN_LONGITUDE) * panelWidth / lonRange);
+        int yPixel = (int) ((AreaConstants.VIS_MAX_LATITUDE - lat) * panelHeight / latRange);
+        return new Point(xPixel, yPixel);
     }
 
     @Override
@@ -91,38 +111,97 @@ public class SimulationPanel extends JPanel implements ActionListener {
         int panelWidth = getWidth();
         int panelHeight = getHeight();
 
-        // Zakres wizualizacji
-        double latRange = AreaConstants.VIS_MAX_LATITUDE - AreaConstants.VIS_MIN_LATITUDE;
-        double lonRange = AreaConstants.VIS_MAX_LONGITUDE - AreaConstants.VIS_MIN_LONGITUDE;
+        // rysowanie ramki obszaru zdarzeń
+        drawIncidentAreaFrame(g2d, panelWidth, panelHeight);
 
-        // Rysowanie JRG i Car
+        //rysowanie ostatniego miejsca zdarzenia
+        drawLastIncidentLocation(g2d, panelWidth, panelHeight);
+
+        // rysowanie JRG, pojemności i samochodów
         for (JRG jrg : jrgs) {
-            Vector2D jrgPos = jrg.getPosition();
+            drawJRG(g2d, jrg, panelWidth, panelHeight);
+        }
+    }
 
-            // Konwersja z Lat/Lon na piksele (Y jest odwrócone)
-            int jrgX = (int) ((jrgPos.getComponents()[1] - AreaConstants.VIS_MIN_LONGITUDE) * panelWidth / lonRange);
-            int jrgY = (int) ((AreaConstants.VIS_MAX_LATITUDE - jrgPos.getComponents()[0]) * panelHeight / latRange);
+    private void drawIncidentAreaFrame(Graphics2D g2d, int panelWidth, int panelHeight) {
+        // konwersja narożników INCIDENT_AREA na piksele
+        Point nw = geoToPixel(AreaConstants.INCIDENT_MAX_LATITUDE, AreaConstants.INCIDENT_MIN_LONGITUDE, panelWidth, panelHeight);
+        Point se = geoToPixel(AreaConstants.INCIDENT_MIN_LATITUDE, AreaConstants.INCIDENT_MAX_LONGITUDE, panelWidth, panelHeight);
 
-            // Rysowanie bazy JRG
-            g2d.setColor(Color.WHITE.darker());
-            g2d.fillOval(jrgX - 5, jrgY - 5, 10, 10);
-            g2d.drawString(jrg.getName(), jrgX + 12, jrgY + 5);
+        int width = se.x - nw.x;
+        int height = se.y - nw.y;
 
-            // Rysowanie samochodów
-            for (Car car : jrg.getAllCars()) {
+        g2d.setColor(new Color(255, 165, 0, 80)); // Półprzezroczysty pomarańczowy dla tła
+        g2d.fillRect(nw.x, nw.y, width, height);
+
+        g2d.setColor(Color.YELLOW); // Żółta ramka
+        g2d.setStroke(new BasicStroke(2));
+        g2d.drawRect(nw.x, nw.y, width, height);
+        g2d.setStroke(new BasicStroke(1));
+    }
+
+    private void drawLastIncidentLocation(Graphics2D g2d, int panelWidth, int panelHeight) {
+        Vector2D pos = skkm.getLastIncidentPosition();
+        if (pos != null) {
+            Point p = geoToPixel(pos.getComponents()[0], pos.getComponents()[1], panelWidth, panelHeight);
+
+            g2d.setColor(Color.RED);
+            g2d.fillOval(p.x - 5, p.y - 5, 10, 10);
+
+            // Rysowanie 'X' na punkcie
+            g2d.setStroke(new BasicStroke(2));
+            g2d.drawLine(p.x - 5, p.y - 5, p.x + 5, p.y + 5);
+            g2d.drawLine(p.x - 5, p.y + 5, p.x + 5, p.y - 5);
+            g2d.setStroke(new BasicStroke(1));
+        }
+    }
+
+    private void drawJRG(Graphics2D g2d, JRG jrg, int panelWidth, int panelHeight) {
+        Vector2D jrgPos = jrg.getPosition();
+        Point p = geoToPixel(jrgPos.getComponents()[0], jrgPos.getComponents()[1], panelWidth, panelHeight);
+
+        final int BAR_WIDTH = 50;
+        final int BAR_HEIGHT = 10;
+        final int TOTAL_CARS = 5;
+        int freeCars = jrg.getFreeCars(TOTAL_CARS).size();
+
+        int barX = p.x - BAR_WIDTH / 2;
+        int barY = p.y - BAR_HEIGHT - 5;
+
+        // Rysowanie Nazwy JRG
+        g2d.setColor(Color.WHITE);
+        g2d.drawString(jrg.getName(), barX, barY - 5);
+
+        // rysowanie pojemności jednostki
+        g2d.setColor(Color.LIGHT_GRAY);
+        g2d.fillRect(barX, barY, BAR_WIDTH, BAR_HEIGHT);
+
+        // wypełnienie (wolne samochody - zielony)
+        int filledWidth = (BAR_WIDTH / TOTAL_CARS) * freeCars;
+        g2d.setColor(CarStatus.FREE.getColor().darker());
+        g2d.fillRect(barX, barY, filledWidth, BAR_HEIGHT);
+
+        // linia podziału (5 części)
+        g2d.setColor(Color.BLACK);
+        g2d.drawRect(barX, barY, BAR_WIDTH, BAR_HEIGHT);
+        for (int i = 1; i < TOTAL_CARS; i++) {
+            int lineX = barX + (BAR_WIDTH / TOTAL_CARS) * i;
+            g2d.drawLine(lineX, barY, lineX, barY + BAR_HEIGHT);
+        }
+
+        // rysowanie samochodów
+        for (Car car : jrg.getAllCars()) {
+            // Rysujemy tylko, jeśli samochód jest poza bazą (nie jest FREE)
+            if (car.getStatus() != CarStatus.FREE) {
                 Vector2D pos = car.getCurrentPosition();
-
-                int xPixel = (int) ((pos.getComponents()[1] - AreaConstants.VIS_MIN_LONGITUDE) * panelWidth / lonRange);
-                int yPixel = (int) ((AreaConstants.VIS_MAX_LATITUDE - pos.getComponents()[0]) * panelHeight / latRange);
+                Point carP = geoToPixel(pos.getComponents()[0], pos.getComponents()[1], panelWidth, panelHeight);
 
                 int diameter = 6;
                 int radius = diameter / 2;
 
-                g2d.setColor(car.getStatus().getColor());
-                g2d.fillOval(xPixel - radius, yPixel - radius, diameter, diameter);
+                g2d.setColor(car.getStatus().getColor()); // Kolor (Orange/Red) zależy od Statusu
+                g2d.fillOval(carP.x - radius, carP.y - radius, diameter, diameter);
             }
         }
-
-        // drawStatus(g2d);
     }
 }

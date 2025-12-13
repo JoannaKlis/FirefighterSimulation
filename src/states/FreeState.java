@@ -18,7 +18,7 @@ public class FreeState implements ICarState {
 
     @Override
     public void dispatch(Car car, Vector2D destination, boolean isFalseAlarm) {
-        // Warunek 8: Zmiana stanu z wolny na w drodze
+        // WZmiana stanu z wolny na w drodze
         car.setTargetPosition(destination);
         car.setState(new BusyGoingState(isFalseAlarm, true)); // true = jedzie na zdarzenie
         System.out.printf("[%s] Rozpoczęto dysponowanie (dojazd). Stan BUSY_GOING.\n", car.getId());

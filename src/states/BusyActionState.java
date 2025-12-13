@@ -6,7 +6,7 @@ import interfaces.ICarState;
 import models.Car;
 import models.CarStatus;
 
-// Stan: Samochód Zajęty (W trakcie działań na miejscu zdarzenia, Warunek 11)
+// Stan: Samochód Zajęty (W trakcie działań na miejscu zdarzenia)
 public class BusyActionState implements ICarState {
     private int remainingSteps;
 
@@ -25,7 +25,7 @@ public class BusyActionState implements ICarState {
         remainingSteps--;
 
         if (remainingSteps <= 0) {
-            // Koniec akcji, samochód zaczyna wracać do jednostki (Warunek 11)
+            // Koniec akcji, samochód zaczyna wracać do jednostki
             car.setTargetPosition(car.getHomePosition());
             car.setState(new BusyGoingState(false, false)); // false = powrót
             System.out.printf("[%s] Koniec akcji. Zaczyna powrót (BUSY_GOING).\n", car.getId());

@@ -7,20 +7,20 @@ import java.util.stream.Collectors;
 
 public class JRG {
     private final String name;
-    private final Vector2D position; // Pozycja stacjonowania JRG
+    private final Vector2D position; // pozycja stacjonowania JRG
     private final List<Car> cars;
 
     public JRG(String name, Vector2D position) {
         this.name = name;
         this.position = position;
         this.cars = new ArrayList<>();
-        // 5 samochodów na jednostkę (Warunek 5)
+        // 5 samochodów na jednostkę
         for (int i = 1; i <= 5; i++) {
             cars.add(new Car(name + "-" + i, position));
         }
     }
 
-    // Pobiera wymaganą liczbę wolnych samochodów (Warunek 9)
+    // pobiera wymaganą liczbę wolnych samochodów (Warunek 9)
     public List<Car> getFreeCars(int requiredCount) {
         return cars.stream()
                 .filter(car -> car.getStatus() == CarStatus.FREE)
@@ -32,7 +32,7 @@ public class JRG {
     public Vector2D getPosition() { return position; }
     public String getName() { return name; }
 
-    // Aktualizacja stanu wszystkich samochodów w jednostce
+    // aktualizacja stanu wszystkich samochodów w jednostce
     public void updateCars() {
         for (Car car : cars) {
             car.update();

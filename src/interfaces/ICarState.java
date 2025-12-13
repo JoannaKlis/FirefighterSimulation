@@ -3,7 +3,7 @@ import implementation.Vector2D;
 import models.Car;
 import models.CarStatus;
 
-// Kontrakt dla stanów samochodów (Warunek 3)
+// Kontrakt dla stanów samochodów
 public interface ICarState {
     CarStatus getStatus();
     void update(Car car);
