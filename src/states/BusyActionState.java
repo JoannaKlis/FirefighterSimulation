@@ -6,11 +6,11 @@ import interfaces.ICarState;
 import models.Car;
 import models.CarStatus;
 
-// Stan: Samochód Zajęty (W trakcie działań na miejscu zdarzenia)
+// Stan: samochód zajęty (w trakcie działań na miejscu zdarzenia)
 public class BusyActionState implements ICarState {
     private int remainingSteps;
 
-    // Konstruktor dla Czasu Działania (5-25s w krokach)
+    // konstruktor dla czasu działania (5-25s w krokach)
     public BusyActionState() {
         this.remainingSteps = SimulationConstants.getRandomActionSteps();
     }
@@ -25,15 +25,16 @@ public class BusyActionState implements ICarState {
         remainingSteps--;
 
         if (remainingSteps <= 0) {
-            // Koniec akcji, samochód zaczyna wracać do jednostki
+            // koniec akcji, samochód zaczyna wracać do jednostki
             car.setTargetPosition(car.getHomePosition());
-            car.setState(new BusyGoingState(false, false)); // false = powrót
-            System.out.printf("[%s] Koniec akcji. Zaczyna powrót (BUSY_GOING).\n", car.getId());
+
+            // zmiana stanu na powrót (dispatch wywoła nowy BusyGoingState)
+            car.dispatch(car.getHomePosition(), false);
         }
     }
 
     @Override
     public void dispatch(Car car, Vector2D destination, boolean isFalseAlarm) {
-        // Zajęty, nie można dysponować
+        // zajęty, nie można dysponować
     }
 }

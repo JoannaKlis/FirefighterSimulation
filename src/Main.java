@@ -15,7 +15,7 @@ public class Main {
             int widthPixels = (int) (lonRange * AreaConstants.PIXELS_PER_DEGREE);
             int heightPixels = (int) (latRange * AreaConstants.PIXELS_PER_DEGREE);
 
-            JFrame frame = new JFrame("Symulacja Dysponowania JRG Kraków (Wzorce Projektowe)");
+            JFrame frame = new JFrame("Symulacja Dysponowania JRG w Krakowie");
 
             SimulationPanel simulationPanel = new SimulationPanel();
             frame.add(simulationPanel);

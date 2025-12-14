@@ -14,5 +14,5 @@ public class AreaConstants {
     public static final double VIS_MAX_LONGITUDE = 20.1;
 
     // uproszczony współczynnik konwersji (dla wizualizacji na ekranie)
-    public static final double PIXELS_PER_DEGREE = 2000.0;
+    public static final double PIXELS_PER_DEGREE = 1800.0;
 }

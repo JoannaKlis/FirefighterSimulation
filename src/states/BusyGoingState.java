@@ -6,20 +6,21 @@ import interfaces.ICarState;
 import models.Car;
 import models.CarStatus;
 
-// Stan: Samochód Zajęty (W drodze na akcję lub w drodze powrotnej)
+// Stan: samochód zajęty (w drodze na akcję lub w drodze powrotnej)
 public class BusyGoingState implements ICarState {
     private int remainingSteps;
-    private final boolean isFalseAlarm;
-    private final boolean goingToIncident; // true: dojazd do zdarzenia, false: powrót do JRG
+    private final boolean isFalseAlarmReported;
+    private final boolean goingToIncident;
 
-    // Konstruktor
-    public BusyGoingState(boolean isFalseAlarm, boolean goingToIncident) {
-        // Czas dojazdu/powrotu (0-3s w krokach)
+    private final int totalSteps; // do płynnej animacji
+
+    // konstruktor
+    public BusyGoingState(boolean isFalseAlarmReported, boolean goingToIncident) {
         this.remainingSteps = SimulationConstants.getRandomResponseSteps();
-        // Zapewnienie, że czas jest > 0, aby uniknąć błędów w moveTowardsTarget
         if (this.remainingSteps == 0) this.remainingSteps = 1;
 
-        this.isFalseAlarm = isFalseAlarm;
+        this.totalSteps = this.remainingSteps;
+        this.isFalseAlarmReported = isFalseAlarmReported;
         this.goingToIncident = goingToIncident;
     }
 
@@ -30,60 +31,64 @@ public class BusyGoingState implements ICarState {
 
     @Override
     public void update(Car car) {
-        // Symulacja ruchu
-        moveTowardsTarget(car, remainingSteps);
+        int stepsPassed = totalSteps - remainingSteps;
+
+        // płynne przemieszczenie
+        moveTowardsTarget(car, stepsPassed, totalSteps);
 
         remainingSteps--;
 
         if (remainingSteps <= 0) {
-            if (goingToIncident) {
-                // Dojechał na miejsce
-                car.setCurrentPosition(car.getTargetPosition());
+            // samochód dotarł do celu
+            car.setCurrentPosition(car.getTargetPosition());
 
-                if (isFalseAlarm) {
-                    // Alarm Fałszywy - natychmiast wraca
+            if (goingToIncident) {
+                // dojechał na miejsce zdarzenia
+                if (car.isActualFalseAlarm()) {
+                    // AF - natychmiast wraca
                     car.setTargetPosition(car.getHomePosition());
-                    car.setState(new BusyGoingState(true, false)); // false = powrót
-                    System.out.printf("[%s] Dojechał (AF). Zaczyna powrót.\n", car.getId());
+
+                    // false dla isFalseAlarm, bo w drodze powrotnej nie ma znaczenia
+                    car.dispatch(car.getHomePosition(), false);
                 } else {
-                    // Prawdziwe zdarzenie - zaczyna akcję
+                    // prawdziwe zdarzenie - zaczyna akcję
                     car.setState(new BusyActionState());
-                    System.out.printf("[%s] Dojechał. Zaczyna akcję (BUSY_ACTION).\n", car.getId());
                 }
             } else {
-                // Dojechał do jednostki (Powrót)
-                car.setCurrentPosition(car.getHomePosition());
-                car.setState(new FreeState()); // Powrót i zmiana stanu na wolny (Warunek 11)
-                System.out.printf("[%s] Powrócił do bazy. Stan FREE.\n", car.getId());
+                // dojechał do jednostki (powrót)
+                car.setState(new FreeState());
+                car.resetIncidentStatus(); // reset statusu AF po powrocie
             }
         }
     }
 
-    // Uproszczona symulacja ruchu (przesunięcie w kierunku celu)
-    private void moveTowardsTarget(Car car, int stepsRemaining) {
-        Vector2D current = car.getCurrentPosition();
+    // metoda do płynnej animacji (interpolacja liniowa)
+    private void moveTowardsTarget(Car car, int stepsPassed, int totalSteps) {
+        Vector2D start = car.getStartPosition();
         Vector2D target = car.getTargetPosition();
 
-        if (current == null || target == null || stepsRemaining <= 0) return;
+        if (start == null || target == null || totalSteps <= 0) return;
 
-        double latDiff = target.getComponents()[0] - current.getComponents()[0];
-        double lonDiff = target.getComponents()[1] - current.getComponents()[1];
+        double ratio = (double) stepsPassed / totalSteps;
 
-        // Całkowita liczba kroków podróży (stepsRemaining + krok wykonany)
-        int totalSteps = SimulationConstants.MAX_RESPONSE_TIME_S * SimulationConstants.STEPS_PER_SECOND;
+        // jeśli ratio >= 1.0, oznacza to, że samochód powinien już być w miejscu docelowym
+        if (ratio >= 1.0) {
+            car.setCurrentPosition(target);
+            return;
+        }
 
-        // Przesunięcie na jeden krok: (Cała odległość / Całkowita liczba kroków, jeśli ruch jest liniowy)
-        double stepLat = latDiff / totalSteps;
-        double stepLon = lonDiff / totalSteps;
+        double latDiff = target.getComponents()[0] - start.getComponents()[0];
+        double lonDiff = target.getComponents()[1] - start.getComponents()[1];
 
-        double newLat = current.getComponents()[0] + stepLat;
-        double newLon = current.getComponents()[1] + stepLon;
+        // liniowa interpolacja: P_nowe = P_start + (P_cel - P_start) * ratio
+        double newLat = start.getComponents()[0] + latDiff * ratio;
+        double newLon = start.getComponents()[1] + lonDiff * ratio;
 
         car.setCurrentPosition(new Vector2D(newLat, newLon));
     }
 
     @Override
     public void dispatch(Car car, Vector2D destination, boolean isFalseAlarm) {
-        // Już zajęty, nie można dysponować
+        // już zajęty, nie można dysponować
     }
 }

@@ -4,7 +4,6 @@ import constants.AreaConstants;
 import constants.SimulationConstants;
 import implementation.Vector2D;
 import interfaces.IDispatchStrategy;
-import implementation.ClosestJRGIterator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import strategy.MZStrategy;
@@ -12,62 +11,97 @@ import strategy.PZStrategy;
 
 public class SKKM {
     private final List<JRG> jrgs;
-    private Vector2D lastIncidentPosition = null; // do wizualizacji miejsca ostatniego zdarzenia
+    private Incident lastReportedIncident = null;
+    private IncidentType lastVisualizedIncidentType = null;
+
+    // pole do śledzenia statusu zdarzenia
+    private boolean incidentResolved = true;
 
     public SKKM(List<JRG> jrgs) {
         this.jrgs = jrgs;
     }
 
-    // Tworzy losowe zgłoszenie w obszarze zdarzeń
+    // losowe zgłoszenie w obszarze zdarzeń
     public Incident receiveCall() {
+        this.incidentResolved = false;
+
         double lat = ThreadLocalRandom.current().nextDouble(AreaConstants.INCIDENT_MIN_LATITUDE, AreaConstants.INCIDENT_MAX_LATITUDE);
         double lon = ThreadLocalRandom.current().nextDouble(AreaConstants.INCIDENT_MIN_LONGITUDE, AreaConstants.INCIDENT_MAX_LONGITUDE);
         Vector2D position = new Vector2D(lat, lon);
 
-        this.lastIncidentPosition = position;
-
+        IncidentType reportedType;
         double rand = ThreadLocalRandom.current().nextDouble();
-        IncidentType type;
 
-        // losowanie charakteru zdarzenia (PZ vs MZ, 30% vs 70%)
+        // logika PZ (30%) lub MZ (70%)
         if (rand < SimulationConstants.PZ_PROBABILITY) {
-            type = IncidentType.PZ;
+            reportedType = IncidentType.PZ;
         } else {
-            type = IncidentType.MZ;
+            reportedType = IncidentType.MZ;
         }
 
-        // losowanie, czy zdarzenie okaże się Alarmem Fałszywym (AF, 5%)
+        this.lastVisualizedIncidentType = reportedType;
+
+        // niezależne losowanie Fałszywego Alarmu (AF, 5%)
         boolean isAF = ThreadLocalRandom.current().nextDouble() < SimulationConstants.AF_PROBABILITY;
 
+        Incident newIncident;
         if (isAF) {
-            System.out.println("--- Nowe zgłoszenie: " + type + " -> Alarm Fałszywy (AF, 5%) ---");
-            return new Incident(IncidentType.AF, position);
+            newIncident = new Incident(IncidentType.AF, position);
+            // zmiana koloru na ten w legendzie
+        } else {
+            newIncident = new Incident(reportedType, position);
+            // kolor zgłoszenia zostaje oryginalny
         }
 
-        System.out.printf("--- Nowe zgłoszenie: %s (%.5f, %.5f) ---\n", type, lat, lon);
-        return new Incident(type, position);
+        this.lastReportedIncident = newIncident;
+        return newIncident;
     }
 
-    // Wzorzec Strategia: Wybór i wykonanie dysponowania (Warunek 7)
+    // Strategia: wybór i wykonanie dysponowania
     public void handleIncident(Incident incident) {
-
         IDispatchStrategy strategy;
+        IncidentType typeToDispatch = this.lastVisualizedIncidentType;
 
-        if (incident.getType() == IncidentType.PZ) {
+        if (typeToDispatch == IncidentType.PZ) {
             strategy = new PZStrategy();
-        } else { // Obejmuje MZ i AF
+        } else {
             strategy = new MZStrategy();
         }
 
-        strategy.executeDispatch(incident, this.jrgs);
+        // przekazanie do strategii, czy jest to AF, aby samochody miały informację o rzeczywistym statusie zdarzenia
+        boolean isFalseAlarm = incident.getType() == IncidentType.AF;
+
+        // wywołanie dispatch ( aby przekazywać isFalseAlarm)
+        strategy.executeDispatch(incident, this.jrgs, isFalseAlarm);
     }
 
-    // Tworzenie iteratora (Wzorzec Iterator)
-    public ClosestJRGIterator createClosestIterator(Incident incident) {
-        return new ClosestJRGIterator(jrgs, incident.getPosition());
+    // metoda do ustawiania wizualizacji AF po dotarciu samochodów
+    public void visualizeRealStatus() {
+        if (this.lastReportedIncident == null) return;
+
+        // tutaj ta zmiana kolorów (SimulationPanel.updateSimulation)
+        if (this.lastVisualizedIncidentType != this.lastReportedIncident.getType()) {
+            this.lastVisualizedIncidentType = this.lastReportedIncident.getType();
+        }
     }
 
-    public Vector2D getLastIncidentPosition() {
-        return lastIncidentPosition;
+    public void setIncidentResolved(boolean resolved) {
+        this.incidentResolved = resolved;
+        if (resolved) {
+            this.lastReportedIncident = null; // ukrycie zdarzenia
+            this.lastVisualizedIncidentType = null;
+        }
+    }
+
+    public Incident getLastReportedIncident() {
+        return lastReportedIncident;
+    }
+
+    public IncidentType getLastVisualizedIncidentType() {
+        return lastVisualizedIncidentType;
+    }
+
+    public boolean isIncidentResolved() {
+        return incidentResolved;
     }
 }

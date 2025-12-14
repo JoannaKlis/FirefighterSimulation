@@ -8,8 +8,7 @@ public class SimulationConstants {
     public static final int SIMULATION_DELAY_MS = 1000 / STEPS_PER_SECOND;
 
     // LOGIKA ZGŁOSZEŃ
-    public static final double MZ_PROBABILITY = 0.70; // Miejscowe zagrożenie 70%
-    public static final double PZ_PROBABILITY = 0.30; // Pożar 30%
+    public static final double PZ_PROBABILITY = 0.30; // Pożar 30%, Miejscowe zagrożenie 70% bo (1-PZ)
     public static final double AF_PROBABILITY = 0.05; // Fałszywy alarm 5%
 
     public static final int PZ_CAR_COUNT = 3; // Wymagane samochody na PZ
