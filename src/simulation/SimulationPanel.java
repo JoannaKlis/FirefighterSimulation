@@ -71,7 +71,7 @@ public class SimulationPanel extends JPanel implements ActionListener {
 
     private void updateSimulation() {
         stepCounter++;
-        boolean incidentHasActiveCars = false;
+        boolean incidentHasActiveCars = false; // Będziemy sprawdzać, czy jakiekolwiek auto jest poza bazą
 
         // odbieranie i obsługa zgłoszeń
         if (stepCounter % SimulationConstants.CALL_INTERVAL_STEPS == 0) {
@@ -86,21 +86,25 @@ public class SimulationPanel extends JPanel implements ActionListener {
 
                 // sprawdzenie, czy samochód jest w drodze lub w akcji
                 if (car.getStatus() != CarStatus.FREE) {
+                    // Wystarczy, że jakikolwiek samochód jest zajęty, aby zdarzenie było AKTYWNE
                     incidentHasActiveCars = true;
                 }
 
                 // logika zmiany wizualizacji zdarzenia na AF/Prawdziwe
-                if (car.getStatus() == CarStatus.BUSY_ACTION || (car.getStatus() == CarStatus.BUSY_GOING && !car.getHomePosition().equals(car.getTargetPosition()))) {
-                    // sprawdzenie, czy samochód właśnie dojechał do celu (miejsca zdarzenia)
-                    if (car.getCurrentPosition().equals(car.getTargetPosition()) && !car.getTargetPosition().equals(car.getHomePosition())) {
-                        // zmiana wizualizacji zdarzenia na jego faktyczny status
-                        skkm.visualizeRealStatus();
-                    }
+                // Zmiana powinna nastąpić, gdy samochód DOJECHAŁ na miejsce zdarzenia
+                // Sprawdzamy, czy samochód JEST na pozycji celu i cel to NIE JEST jego jednostka
+                if (car.getCurrentPosition().equals(car.getTargetPosition()) &&
+                        !car.getTargetPosition().equals(car.getHomePosition()) &&
+                        (car.getStatus() == CarStatus.BUSY_ACTION || car.getStatus() == CarStatus.BUSY_GOING)) {
+
+                    // Zdarzenie zostało zweryfikowane po dojechaniu
+                    skkm.visualizeRealStatus();
                 }
             }
         }
 
-        // ikonka zdarzenia ma być widoczna do czasu trwania zdarzenia.
+        // ikonka zdarzenia ma być widoczna do czasu, aż wszystkie samochody wrócą do jednostki.
+        // Jeśli jest zgłoszenie, ale ŻADEN samochód nie jest aktywny, oznacza to, że akcja się zakończyła
         if (skkm.getLastReportedIncident() != null && !incidentHasActiveCars) {
             skkm.setIncidentResolved(true);
         }
@@ -175,13 +179,13 @@ public class SimulationPanel extends JPanel implements ActionListener {
         g2d.drawString("Zdarzenia:", LEGEND_X, y);
         y += LEGEND_LINE_HEIGHT;
 
-        drawIncidentShape(g2d, IncidentType.PZ, LEGEND_X, y, "PZ - Prawdziwy");
+        drawIncidentShape(g2d, IncidentType.PZ, LEGEND_X, y, "PZ - Prawdziwy", Color.GREEN);
         y += LEGEND_LINE_HEIGHT;
-        drawIncidentShape(g2d, IncidentType.PZ, LEGEND_X, y, "PZ - Fałszywy (AF)", Color.RED); // Przykład fałszywego z czerwoną obwódką
+        drawIncidentShape(g2d, IncidentType.PZ, LEGEND_X, y, "PZ - Fałszywy (AF)"); // Przykład fałszywego z czerwoną obwódką
         y += LEGEND_LINE_HEIGHT;
-        drawIncidentShape(g2d, IncidentType.MZ, LEGEND_X, y, "MZ - Prawdziwy");
+        drawIncidentShape(g2d, IncidentType.MZ, LEGEND_X, y, "MZ - Prawdziwy", Color.GREEN);
         y += LEGEND_LINE_HEIGHT;
-        drawIncidentShape(g2d, IncidentType.MZ, LEGEND_X, y, "MZ - Fałszywy (AF)", Color.RED); // Przykład fałszywego z czerwoną obwódką
+        drawIncidentShape(g2d, IncidentType.MZ, LEGEND_X, y, "MZ - Fałszywy (AF)"); // Przykład fałszywego z czerwoną obwódką
     }
 
     private void drawCarStatus(Graphics2D g2d, int x, int y, CarStatus status, String label) {
@@ -200,10 +204,14 @@ public class SimulationPanel extends JPanel implements ActionListener {
 
         g2d.setStroke(new BasicStroke(1));
 
-        Color fillColor = Color.BLACK;
+        Color fillColor = Color.RED;
         Shape shape = null;
 
-        switch (type) {
+        // Określamy kształt na podstawie typu WIZUALIZOWANEGO
+        // W legendzie używamy PZ/MZ do rysowania, AF jest tylko do opisania
+        IncidentType actualType = type == IncidentType.AF ? IncidentType.MZ : type;
+
+        switch (actualType) {
             case PZ:
                 fillColor = Color.ORANGE;
                 int[] xPZ = {shapeX - SIZE, shapeX + SIZE, shapeX};
@@ -213,12 +221,6 @@ public class SimulationPanel extends JPanel implements ActionListener {
             case MZ:
                 fillColor = Color.PINK;
                 shape = new Rectangle(shapeX - SIZE / 2, shapeY - SIZE / 2, SIZE, SIZE);
-                break;
-            case AF:
-                // AF w legendzie (finalny)
-                g2d.setColor(Color.RED);
-                g2d.drawLine(shapeX - SIZE, shapeY - SIZE, shapeX + SIZE, shapeY + SIZE);
-                g2d.drawLine(shapeX - SIZE, shapeY + SIZE, shapeX + SIZE, shapeY - SIZE);
                 break;
         }
 
@@ -231,7 +233,7 @@ public class SimulationPanel extends JPanel implements ActionListener {
                 g2d.setColor(outlineColor);
                 g2d.draw(shape);
             } else {
-                g2d.setColor(Color.BLACK);
+                g2d.setColor(Color.RED);
                 g2d.draw(shape);
             }
         }
@@ -272,23 +274,25 @@ public class SimulationPanel extends JPanel implements ActionListener {
         int x = p.x;
         int y = p.y;
 
-        // domyślny kolor obwódki to CZARNY (gdy zdarzenie jest dysponowane, a auta jeszcze nie dojechały)
-        Color outlineColor = Color.BLACK;
-
-        // sprawdzenie, czy zdarzenie zostało zweryfikowane (czy auta dojechały)
+        // wizualizacja fałszywych alarmów
+        Color outlineColor = Color.RED;
         if (visualizedType == reportedIncident.getType()) {
-            // prawdziwe zdarzenie - zielona obwódka
+            // Prawdziwe Zdarzenie (PZ lub MZ): Zielona obwódka
             outlineColor = Color.GREEN;
-        } else if (visualizedType == IncidentType.AF) {
-            // fałszywy alarm - czerwona obwódka
-            outlineColor = Color.RED;
         }
 
         g2d.setStroke(new BasicStroke(3)); // grubsza obwódka dla zdarzenia
         Shape shape = null;
 
-        // Użycie typu do wizualizacji: PZ, MZ, AF (jeśli AF ujawniony)
-        switch (visualizedType) {
+        // Użycie typu do wizualizacji, ale unikamy przypadku AF w switch (aby nie rysować X)
+        IncidentType shapeType = visualizedType;
+
+        // Jeśli AF został ujawniony, używamy kształtu MZ (różowy kwadrat) jako domyślnego
+        if (shapeType == IncidentType.AF) {
+            shapeType = IncidentType.MZ;
+        }
+
+        switch (shapeType) {
             case PZ:
                 g2d.setColor(Color.ORANGE);
                 int[] xPZ = {x - SIZE, x + SIZE, x};
@@ -297,18 +301,12 @@ public class SimulationPanel extends JPanel implements ActionListener {
                 break;
             case MZ:
                 g2d.setColor(Color.PINK);
-                shape = new Rectangle(x - SIZE / 2, y - SIZE / 2, SIZE, SIZE);
-                break;
-            case AF:
-                // fałszywy alarm (AF) - ikona X
-                g2d.setColor(Color.RED);
-                g2d.drawLine(x - SIZE, y - SIZE, x + SIZE, y + SIZE);
-                g2d.drawLine(x - SIZE, y + SIZE, x + SIZE, y - SIZE);
+                shape = new Rectangle(x - SIZE, y - SIZE, 2 * SIZE, 2 * SIZE);
                 break;
         }
 
         if (shape != null) {
-            // rysowanie wypełnienia
+            // rysowanie wypełnienia (dla PZ/MZ)
             g2d.fill(shape);
             // rysowanie obwódki (krawędzi)
             g2d.setColor(outlineColor);

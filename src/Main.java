@@ -21,7 +21,7 @@ public class Main {
             frame.add(simulationPanel);
 
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setLocationRelativeTo(null);
+            frame.setLocation(200, 50);
             frame.setResizable(true);
             frame.setVisible(true);
 
