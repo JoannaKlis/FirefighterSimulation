@@ -13,42 +13,43 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SimulationPanel extends JPanel implements ActionListener {
+
     private final SKKM skkm;
     private final List<JRG> jrgs;
+
     private int stepCounter;
     private final Timer timer;
 
-    // stałe do rysowania legendy
+    // ===== LEGENDA =====
     private static final int LEGEND_X = 10;
     private static final int LEGEND_Y_START = 40;
-    private static final int LEGEND_LINE_HEIGHT = 14;
-    private static final int LEGEND_FONT_SIZE = 11;
+    private static final int LEGEND_LINE = 14;
 
     public SimulationPanel() {
-        this.stepCounter = 0;
-        List<JRG> allJrgs = initializeJRG();
-        this.jrgs = allJrgs;
-        this.skkm = new SKKM(allJrgs);
 
-        // GUI setup
-        this.setLayout(new BorderLayout());
-        this.setBackground(Color.DARK_GRAY);
+        stepCounter = 0;
+        jrgs = initializeJRG();
+        skkm = new SKKM(jrgs);
+
+        setBackground(Color.DARK_GRAY);
+        setLayout(new BorderLayout());
 
         double latRange = AreaConstants.VIS_MAX_LATITUDE - AreaConstants.VIS_MIN_LATITUDE;
         double lonRange = AreaConstants.VIS_MAX_LONGITUDE - AreaConstants.VIS_MIN_LONGITUDE;
-        int widthPixels = (int) (lonRange * AreaConstants.PIXELS_PER_DEGREE);
-        int heightPixels = (int) (latRange * AreaConstants.PIXELS_PER_DEGREE);
 
-        this.setPreferredSize(new Dimension(widthPixels, heightPixels));
+        setPreferredSize(new Dimension(
+                (int) (lonRange * AreaConstants.PIXELS_PER_DEGREE),
+                (int) (latRange * AreaConstants.PIXELS_PER_DEGREE)
+        ));
 
         timer = new Timer(SimulationConstants.SIMULATION_DELAY_MS, this);
         timer.start();
     }
 
     private List<JRG> initializeJRG() {
+
         List<JRG> list = new ArrayList<>();
 
-        // współrzędne jednostrek RG
         list.add(new JRG("JRG-1", new Vector2D(50.0599424, 19.9432412)));
         list.add(new JRG("JRG-2", new Vector2D(50.0335189, 19.9358363)));
         list.add(new JRG("JRG-3", new Vector2D(50.0755229, 19.8875822)));
@@ -70,298 +71,234 @@ public class SimulationPanel extends JPanel implements ActionListener {
     }
 
     private void updateSimulation() {
-        stepCounter++;
-        boolean incidentHasActiveCars = false; // Będziemy sprawdzać, czy jakiekolwiek auto jest poza bazą
 
-        // odbieranie i obsługa zgłoszeń
-        if (stepCounter % SimulationConstants.CALL_INTERVAL_STEPS == 0) {
+        stepCounter++;
+
+        if (stepCounter % SimulationConstants.CALL_INTERVAL_STEPS == 0
+                && !skkm.hasActiveAction()) {
+
             Incident incident = skkm.receiveCall();
             skkm.handleIncident(incident);
         }
 
-        // aktualizacja stanu samochodów (Wzorzec Stan)
         for (JRG jrg : jrgs) {
-            for (Car car : jrg.getAllCars()) {
-                car.update();
-
-                // sprawdzenie, czy samochód jest w drodze lub w akcji
-                if (car.getStatus() != CarStatus.FREE) {
-                    // Wystarczy, że jakikolwiek samochód jest zajęty, aby zdarzenie było AKTYWNE
-                    incidentHasActiveCars = true;
-                }
-
-                // logika zmiany wizualizacji zdarzenia na AF/Prawdziwe
-                // Zmiana powinna nastąpić, gdy samochód DOJECHAŁ na miejsce zdarzenia
-                // Sprawdzamy, czy samochód JEST na pozycji celu i cel to NIE JEST jego jednostka
-                if (car.getCurrentPosition().equals(car.getTargetPosition()) &&
-                        !car.getTargetPosition().equals(car.getHomePosition()) &&
-                        (car.getStatus() == CarStatus.BUSY_ACTION || car.getStatus() == CarStatus.BUSY_GOING)) {
-
-                    // Zdarzenie zostało zweryfikowane po dojechaniu
-                    skkm.visualizeRealStatus();
-                }
-            }
+            jrg.updateCars();
         }
 
-        // ikonka zdarzenia ma być widoczna do czasu, aż wszystkie samochody wrócą do jednostki.
-        // Jeśli jest zgłoszenie, ale ŻADEN samochód nie jest aktywny, oznacza to, że akcja się zakończyła
-        if (skkm.getLastReportedIncident() != null && !incidentHasActiveCars) {
-            skkm.setIncidentResolved(true);
+        skkm.update();
+    }
+
+    // ================= RYSOWANIE =================
+    @Override
+    protected void paintComponent(Graphics g) {
+
+        super.paintComponent(g);
+        Graphics2D g2 = (Graphics2D) g;
+
+        int w = getWidth();
+        int h = getHeight();
+
+        drawTimer(g2);
+        drawLegend(g2);
+        drawIncidentArea(g2, w, h);
+
+        if (skkm.getLastReportedIncident() != null) {
+            drawIncident(g2,
+                    skkm.getLastReportedIncident(),
+                    skkm.getLastVisualizedIncidentType(),
+                    w, h
+            );
+        }
+
+        for (JRG jrg : jrgs) {
+            drawJRG(g2, jrg, w, h);
         }
     }
 
-    // zamiana lat/lon na piksele
-    private Point geoToPixel(double lat, double lon, int panelWidth, int panelHeight) {
+    // ===== TIMER =====
+    private void drawTimer(Graphics2D g) {
+
+        int seconds = stepCounter / SimulationConstants.STEPS_PER_SECOND;
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Monospaced", Font.BOLD, 14));
+        g.drawString("Czas symulacji: " + seconds + " s", LEGEND_X, 20);
+    }
+
+    // ===== LEGENDA =====
+    private void drawLegend(Graphics2D g) {
+
+        int y = LEGEND_Y_START;
+        g.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        g.setColor(Color.WHITE);
+
+        g.drawString("LEGENDA:", LEGEND_X, y);
+        y += LEGEND_LINE;
+
+        drawLegendDot(g, CarStatus.FREE.getColor(), "Wolny", y);
+        y += LEGEND_LINE;
+        drawLegendDot(g, CarStatus.BUSY_GOING.getColor(), "W drodze", y);
+        y += LEGEND_LINE;
+        drawLegendDot(g, CarStatus.BUSY_ACTION.getColor(), "W akcji", y);
+        y += LEGEND_LINE * 2;
+
+        g.drawString("Zdarzenia:", LEGEND_X, y);
+        y += LEGEND_LINE;
+
+        // ===== PZ – prawdziwe zdarzenie =====
+        drawLegendPZ(g, Color.GREEN, y);
+        g.setColor(Color.WHITE);
+        g.drawString("Pożar (PZ)", LEGEND_X + 14, y + 6);
+        y += LEGEND_LINE;
+
+        // ===== PZ – FAŁSZYWY ALARM =====
+        drawLegendPZ(g, Color.RED, y);
+        g.setColor(Color.WHITE);
+        g.drawString("Pożar – FA", LEGEND_X + 14, y + 6);
+        y += LEGEND_LINE;
+
+        // ===== MZ – prawdziwe zdarzenie =====
+        drawLegendMZ(g, Color.GREEN, y);
+        g.setColor(Color.WHITE);
+        g.drawString("Miejscowe zagrożenie (MZ)", LEGEND_X + 14, y + 6);
+        y += LEGEND_LINE;
+
+        // ===== MZ – FAŁSZYWY ALARM =====
+        drawLegendMZ(g, Color.RED, y);
+        g.setColor(Color.WHITE);
+        g.drawString("MZ – FA", LEGEND_X + 14, y + 6);
+    }
+
+    private void drawLegendPZ(Graphics2D g, Color borderColor, int y) {
+
+        g.setStroke(new BasicStroke(2));
+        g.setColor(Color.ORANGE);
+
+        Polygon p = new Polygon(
+                new int[]{LEGEND_X, LEGEND_X + 6, LEGEND_X + 3},
+                new int[]{y + 6, y + 6, y},
+                3
+        );
+
+        g.fill(p);
+        g.setColor(borderColor);
+        g.draw(p);
+    }
+
+    private void drawLegendMZ(Graphics2D g, Color borderColor, int y) {
+
+        g.setStroke(new BasicStroke(2));
+        g.setColor(Color.PINK);
+        g.fillRect(LEGEND_X, y, 6, 6);
+
+        g.setColor(borderColor);
+        g.drawRect(LEGEND_X, y, 6, 6);
+    }
+
+
+    private void drawLegendDot(Graphics2D g, Color c, String label, int y) {
+        g.setColor(c);
+        g.fillOval(LEGEND_X, y - 6, 6, 6);
+        g.setColor(Color.WHITE);
+        g.drawString(label, LEGEND_X + 12, y);
+    }
+
+    // ===== OBSZAR ZDARZEŃ =====
+    private void drawIncidentArea(Graphics2D g, int w, int h) {
+
+        Point nw = geoToPixel(
+                AreaConstants.INCIDENT_MAX_LATITUDE,
+                AreaConstants.INCIDENT_MIN_LONGITUDE,
+                w, h
+        );
+        Point se = geoToPixel(
+                AreaConstants.INCIDENT_MIN_LATITUDE,
+                AreaConstants.INCIDENT_MAX_LONGITUDE,
+                w, h
+        );
+
+        g.setColor(Color.WHITE);
+        g.setStroke(new BasicStroke(2));
+        g.drawRect(nw.x, nw.y, se.x - nw.x, se.y - nw.y);
+    }
+
+    // ===== ZDARZENIE =====
+    private void drawIncident(Graphics2D g, Incident incident,
+                              IncidentType visualType, int w, int h) {
+
+        Vector2D p = incident.getPosition();
+        Point pt = geoToPixel(p.getComponents()[0], p.getComponents()[1], w, h);
+
+        g.setStroke(new BasicStroke(3));
+        Shape shape;
+
+        if (visualType == IncidentType.PZ) {
+            g.setColor(Color.ORANGE);
+            shape = new Polygon(
+                    new int[]{pt.x - 8, pt.x + 8, pt.x},
+                    new int[]{pt.y + 8, pt.y + 8, pt.y - 8}, 3
+            );
+        } else {
+            g.setColor(Color.PINK);
+            shape = new Rectangle(pt.x - 8, pt.y - 8, 16, 16);
+        }
+
+        g.fill(shape);
+        g.setColor(incident.getType() == visualType ? Color.GREEN : Color.RED);
+        g.draw(shape);
+    }
+
+    // ===== JRG + PASEK =====
+    private void drawJRG(Graphics2D g, JRG jrg, int w, int h) {
+
+        Vector2D pos = jrg.getPosition();
+        Point p = geoToPixel(pos.getComponents()[0], pos.getComponents()[1], w, h);
+
+        final int BAR_W = 50;
+        final int BAR_H = 8;
+        final int TOTAL = 5;
+
+        int free = jrg.getFreeCars(TOTAL).size();
+        int bx = p.x - BAR_W / 2;
+        int by = p.y - 18;
+
+        g.setColor(Color.WHITE);
+        g.drawString(jrg.getName(), bx, by - 4);
+
+        g.setColor(Color.GRAY);
+        g.fillRect(bx, by, BAR_W, BAR_H);
+
+        g.setColor(CarStatus.FREE.getColor().darker());
+        g.fillRect(bx, by, BAR_W * free / TOTAL, BAR_H);
+
+        g.setColor(Color.BLACK);
+        g.drawRect(bx, by, BAR_W, BAR_H);
+
+        // linia podziału (5 części)
+        g.setColor(Color.GRAY);
+        g.drawRect(bx, by, BAR_W, BAR_H);
+        for (int i = 1; i < TOTAL; i++) {
+            int lineX = bx + (BAR_W / TOTAL) * i;
+            g.drawLine(lineX, by, lineX, by + BAR_H);
+        }
+
+        for (Car car : jrg.getAllCars()) {
+            if (car.getStatus() != CarStatus.FREE) {
+                Vector2D cp = car.getCurrentPosition();
+                Point cpt = geoToPixel(cp.getComponents()[0], cp.getComponents()[1], w, h);
+                g.setColor(car.getStatus().getColor());
+                g.fillOval(cpt.x - 3, cpt.y - 3, 6, 6);
+            }
+        }
+    }
+
+    private Point geoToPixel(double lat, double lon, int w, int h) {
+
         double latRange = AreaConstants.VIS_MAX_LATITUDE - AreaConstants.VIS_MIN_LATITUDE;
         double lonRange = AreaConstants.VIS_MAX_LONGITUDE - AreaConstants.VIS_MIN_LONGITUDE;
 
-        int xPixel = (int) ((lon - AreaConstants.VIS_MIN_LONGITUDE) * panelWidth / lonRange);
-        int yPixel = (int) ((AreaConstants.VIS_MAX_LATITUDE - lat) * panelHeight / latRange);
-        return new Point(xPixel, yPixel);
-    }
-
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        Graphics2D g2d = (Graphics2D) g;
-
-        int panelWidth = getWidth();
-        int panelHeight = getHeight();
-
-        // rysowanie timera
-        drawTimer(g2d);
-        // rysowanie legendy
-        drawLegend(g2d);
-
-        // rysowanie ramki obszaru zdarzeń
-        drawIncidentAreaFrame(g2d, panelWidth, panelHeight);
-
-        // rysowanie miejsca zdarzenia tylko, gdy jest aktywne
-        if (!skkm.isIncidentResolved()) {
-            drawLastIncidentLocation(g2d, panelWidth, panelHeight);
-        }
-
-        // rysowanie JRG, pojemności i samochodów
-        for (JRG jrg : jrgs) {
-            drawJRG(g2d, jrg, panelWidth, panelHeight);
-        }
-    }
-
-    private void drawTimer(Graphics2D g2d) {
-        int seconds = stepCounter / SimulationConstants.STEPS_PER_SECOND;
-        int steps = stepCounter % SimulationConstants.STEPS_PER_SECOND;
-
-        String timeString = String.format("Czas symulacji: %d s",seconds);
-
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Monospaced", Font.BOLD, 14));
-        g2d.drawString(timeString, LEGEND_X, 20);
-    }
-
-    private void drawLegend(Graphics2D g2d) {
-        g2d.setFont(new Font("SansSerif", Font.PLAIN, LEGEND_FONT_SIZE));
-        g2d.setColor(Color.WHITE);
-
-        int y = LEGEND_Y_START;
-
-        g2d.drawString("LEGENDA:", LEGEND_X, y);
-        y += LEGEND_LINE_HEIGHT;
-
-        // pojazdy
-        drawCarStatus(g2d, LEGEND_X, y, CarStatus.FREE, "Wolny");
-        y += LEGEND_LINE_HEIGHT;
-        drawCarStatus(g2d, LEGEND_X, y, CarStatus.BUSY_GOING, "W drodze");
-        y += LEGEND_LINE_HEIGHT;
-        drawCarStatus(g2d, LEGEND_X, y, CarStatus.BUSY_ACTION, "W akcji");
-        y += LEGEND_LINE_HEIGHT;
-
-        // Zdarzenia
-        g2d.drawString("Zdarzenia:", LEGEND_X, y);
-        y += LEGEND_LINE_HEIGHT;
-
-        drawIncidentShape(g2d, IncidentType.PZ, LEGEND_X, y, "PZ - Prawdziwy", Color.GREEN);
-        y += LEGEND_LINE_HEIGHT;
-        drawIncidentShape(g2d, IncidentType.PZ, LEGEND_X, y, "PZ - Fałszywy (AF)"); // Przykład fałszywego z czerwoną obwódką
-        y += LEGEND_LINE_HEIGHT;
-        drawIncidentShape(g2d, IncidentType.MZ, LEGEND_X, y, "MZ - Prawdziwy", Color.GREEN);
-        y += LEGEND_LINE_HEIGHT;
-        drawIncidentShape(g2d, IncidentType.MZ, LEGEND_X, y, "MZ - Fałszywy (AF)"); // Przykład fałszywego z czerwoną obwódką
-    }
-
-    private void drawCarStatus(Graphics2D g2d, int x, int y, CarStatus status, String label) {
-        final int SIZE = 5;
-        g2d.setColor(status.getColor());
-        g2d.fillOval(x, y - SIZE/2 - 2, SIZE, SIZE);
-        g2d.setColor(Color.WHITE);
-        g2d.drawString(label, x + SIZE + 5, y);
-    }
-
-    // opcjonalny kolor obwódki do legendy
-    private void drawIncidentShape(Graphics2D g2d, IncidentType type, int x, int y, String label, Color outlineColor) {
-        final int SIZE = 6;
-        int shapeX = x + SIZE/2;
-        int shapeY = y - SIZE/2 - 2;
-
-        g2d.setStroke(new BasicStroke(1));
-
-        Color fillColor = Color.RED;
-        Shape shape = null;
-
-        // Określamy kształt na podstawie typu WIZUALIZOWANEGO
-        // W legendzie używamy PZ/MZ do rysowania, AF jest tylko do opisania
-        IncidentType actualType = type == IncidentType.AF ? IncidentType.MZ : type;
-
-        switch (actualType) {
-            case PZ:
-                fillColor = Color.ORANGE;
-                int[] xPZ = {shapeX - SIZE, shapeX + SIZE, shapeX};
-                int[] yPZ = {shapeY + SIZE, shapeY + SIZE, shapeY - SIZE};
-                shape = new Polygon(xPZ, yPZ, 3);
-                break;
-            case MZ:
-                fillColor = Color.PINK;
-                shape = new Rectangle(shapeX - SIZE / 2, shapeY - SIZE / 2, SIZE, SIZE);
-                break;
-        }
-
-        if (shape != null) {
-            g2d.setColor(fillColor);
-            g2d.fill(shape);
-
-            // rysowanie obwódki, jeśli podano
-            if (outlineColor != null) {
-                g2d.setColor(outlineColor);
-                g2d.draw(shape);
-            } else {
-                g2d.setColor(Color.RED);
-                g2d.draw(shape);
-            }
-        }
-
-        g2d.setColor(Color.WHITE);
-        g2d.drawString(label, x + SIZE * 2 + 5, y);
-    }
-
-    private void drawIncidentShape(Graphics2D g2d, IncidentType type, int x, int y, String label) {
-        drawIncidentShape(g2d, type, x, y, label, null);
-    }
-
-    private void drawIncidentAreaFrame(Graphics2D g2d, int panelWidth, int panelHeight) {
-        Point nw = geoToPixel(AreaConstants.INCIDENT_MAX_LATITUDE, AreaConstants.INCIDENT_MIN_LONGITUDE, panelWidth, panelHeight);
-        Point se = geoToPixel(AreaConstants.INCIDENT_MIN_LATITUDE, AreaConstants.INCIDENT_MAX_LONGITUDE, panelWidth, panelHeight);
-
-        int width = se.x - nw.x;
-        int height = se.y - nw.y;
-
-        g2d.setColor(Color.WHITE);
-        g2d.setStroke(new BasicStroke(2));
-        g2d.drawRect(nw.x, nw.y, width, height);
-        g2d.setStroke(new BasicStroke(1));
-    }
-
-    // rysowanie miejsca zdarzenia z obwódką na podstawie statusu (prawdziwy/fałszywy)
-    private void drawLastIncidentLocation(Graphics2D g2d, int panelWidth, int panelHeight) {
-        Incident reportedIncident = skkm.getLastReportedIncident();
-        IncidentType visualizedType = skkm.getLastVisualizedIncidentType();
-
-        // sprawdzamy, czy w ogóle jest zdarzenie do wizualizacji
-        if (reportedIncident == null || visualizedType == null) return;
-
-        Vector2D pos = reportedIncident.getPosition();
-        Point p = geoToPixel(pos.getComponents()[0], pos.getComponents()[1], panelWidth, panelHeight);
-
-        final int SIZE = 8;
-        int x = p.x;
-        int y = p.y;
-
-        // wizualizacja fałszywych alarmów
-        Color outlineColor = Color.RED;
-        if (visualizedType == reportedIncident.getType()) {
-            // Prawdziwe Zdarzenie (PZ lub MZ): Zielona obwódka
-            outlineColor = Color.GREEN;
-        }
-
-        g2d.setStroke(new BasicStroke(3)); // grubsza obwódka dla zdarzenia
-        Shape shape = null;
-
-        // Użycie typu do wizualizacji, ale unikamy przypadku AF w switch (aby nie rysować X)
-        IncidentType shapeType = visualizedType;
-
-        // Jeśli AF został ujawniony, używamy kształtu MZ (różowy kwadrat) jako domyślnego
-        if (shapeType == IncidentType.AF) {
-            shapeType = IncidentType.MZ;
-        }
-
-        switch (shapeType) {
-            case PZ:
-                g2d.setColor(Color.ORANGE);
-                int[] xPZ = {x - SIZE, x + SIZE, x};
-                int[] yPZ = {y + SIZE, y + SIZE, y - SIZE};
-                shape = new Polygon(xPZ, yPZ, 3);
-                break;
-            case MZ:
-                g2d.setColor(Color.PINK);
-                shape = new Rectangle(x - SIZE, y - SIZE, 2 * SIZE, 2 * SIZE);
-                break;
-        }
-
-        if (shape != null) {
-            // rysowanie wypełnienia (dla PZ/MZ)
-            g2d.fill(shape);
-            // rysowanie obwódki (krawędzi)
-            g2d.setColor(outlineColor);
-            g2d.draw(shape);
-        }
-
-        g2d.setStroke(new BasicStroke(1));
-    }
-
-    private void drawJRG(Graphics2D g2d, JRG jrg, int panelWidth, int panelHeight) {
-        Vector2D jrgPos = jrg.getPosition();
-        Point p = geoToPixel(jrgPos.getComponents()[0], jrgPos.getComponents()[1], panelWidth, panelHeight);
-
-        final int BAR_WIDTH = 50;
-        final int BAR_HEIGHT = 10;
-        final int TOTAL_CARS = 5;
-        int freeCars = jrg.getFreeCars(TOTAL_CARS).size();
-
-        int barX = p.x - BAR_WIDTH / 2;
-        int barY = p.y - BAR_HEIGHT - 5;
-
-        // rysowanie Nazwy JRG
-        g2d.setColor(Color.WHITE);
-        g2d.drawString(jrg.getName(), barX, barY - 5);
-
-        // rysowanie pojemności jednostki
-        g2d.setColor(Color.LIGHT_GRAY);
-        g2d.fillRect(barX, barY, BAR_WIDTH, BAR_HEIGHT);
-
-        // wypełnienie (wolne samochody - zielony)
-        int filledWidth = (BAR_WIDTH / TOTAL_CARS) * freeCars;
-        g2d.setColor(CarStatus.FREE.getColor().darker());
-        g2d.fillRect(barX, barY, filledWidth, BAR_HEIGHT);
-
-        // linia podziału (5 części)
-        g2d.setColor(Color.BLACK);
-        g2d.drawRect(barX, barY, BAR_WIDTH, BAR_HEIGHT);
-        for (int i = 1; i < TOTAL_CARS; i++) {
-            int lineX = barX + (BAR_WIDTH / TOTAL_CARS) * i;
-            g2d.drawLine(lineX, barY, lineX, barY + BAR_HEIGHT);
-        }
-
-        // rysowanie samochodów
-        for (Car car : jrg.getAllCars()) {
-            // rysujemy tylko te, które są w ruchu (BusyGoing) lub w akcji (BusyAction)
-            if (car.getStatus() != CarStatus.FREE) {
-                Vector2D pos = car.getCurrentPosition();
-                Point carP = geoToPixel(pos.getComponents()[0], pos.getComponents()[1], panelWidth, panelHeight);
-
-                int diameter = 5;
-                int radius = diameter / 2;
-
-                g2d.setColor(car.getStatus().getColor());
-                g2d.fillOval(carP.x - radius, carP.y - radius, diameter, diameter);
-            }
-        }
+        return new Point(
+                (int) ((lon - AreaConstants.VIS_MIN_LONGITUDE) * w / lonRange),
+                (int) ((AreaConstants.VIS_MAX_LATITUDE - lat) * h / latRange)
+        );
     }
 }

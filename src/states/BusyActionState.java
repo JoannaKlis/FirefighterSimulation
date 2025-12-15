@@ -25,16 +25,19 @@ public class BusyActionState implements ICarState {
         remainingSteps--;
 
         if (remainingSteps <= 0) {
-            // koniec akcji, samochód zaczyna wracać do jednostki
-            car.setTargetPosition(car.getHomePosition());
+            // koniec akcji, samochód zaczyna wracać do jednostki (krok 6)
 
-            // zmiana stanu na powrót (dispatch wywoła nowy BusyGoingState)
-            car.dispatch(car.getHomePosition(), false);
+            // ZMIANA: Losujemy czas powrotu (0-3s)
+            int returnSteps = SimulationConstants.getRandomResponseSteps();
+
+            // ZMIANA: Inicjacja powrotu
+            car.initiateReturn(returnSteps);
         }
     }
 
     @Override
-    public void dispatch(Car car, Vector2D destination, boolean isFalseAlarm) {
+    // ZMIANA: Dostosowanie sygnatury do ICarState
+    public void dispatch(Car car, Vector2D destination, boolean isFalseAlarm, int responseSteps) {
         // zajęty, nie można dysponować
     }
 }

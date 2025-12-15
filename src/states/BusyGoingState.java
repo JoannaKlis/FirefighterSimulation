@@ -9,18 +9,16 @@ import models.CarStatus;
 // Stan: samochód zajęty (w drodze na akcję lub w drodze powrotnej)
 public class BusyGoingState implements ICarState {
     private int remainingSteps;
-    private final boolean isFalseAlarmReported;
     private final boolean goingToIncident;
 
     private final int totalSteps; // do płynnej animacji
 
-    // konstruktor
-    public BusyGoingState(boolean isFalseAlarmReported, boolean goingToIncident) {
-        this.remainingSteps = SimulationConstants.getRandomResponseSteps();
-        if (this.remainingSteps == 0) this.remainingSteps = 1;
+    // ZMIANA: Konstruktor przyjmuje responseSteps
+    public BusyGoingState(int responseSteps, boolean goingToIncident) {
+        this.remainingSteps = responseSteps;
+        if (this.remainingSteps <= 0) this.remainingSteps = 1;
 
         this.totalSteps = this.remainingSteps;
-        this.isFalseAlarmReported = isFalseAlarmReported;
         this.goingToIncident = goingToIncident;
     }
 
@@ -45,17 +43,19 @@ public class BusyGoingState implements ICarState {
             if (goingToIncident) {
                 // dojechał na miejsce zdarzenia
                 if (car.isActualFalseAlarm()) {
-                    // AF - natychmiast wraca
-                    car.setTargetPosition(car.getHomePosition());
+                    // AF - natychmiast wraca (krok 7)
 
-                    // false dla isFalseAlarm, bo w drodze powrotnej nie ma znaczenia
-                    car.dispatch(car.getHomePosition(), false);
+                    // ZMIANA: Losujemy nowy czas powrotu (0-3s)
+                    int returnSteps = SimulationConstants.getRandomResponseSteps();
+
+                    // ZMIANA: Inicjacja powrotu
+                    car.initiateReturn(returnSteps);
                 } else {
-                    // prawdziwe zdarzenie - zaczyna akcję
+                    // prawdziwe zdarzenie - zaczyna akcję (krok 6)
                     car.setState(new BusyActionState());
                 }
             } else {
-                // dojechał do jednostki (powrót)
+                // dojechał do jednostki (powrót) (krok 8)
                 car.setState(new FreeState());
                 car.resetIncidentStatus(); // reset statusu AF po powrocie
             }
@@ -88,7 +88,8 @@ public class BusyGoingState implements ICarState {
     }
 
     @Override
-    public void dispatch(Car car, Vector2D destination, boolean isFalseAlarm) {
+    // ZMIANA: Dostosowanie sygnatury do ICarState
+    public void dispatch(Car car, Vector2D destination, boolean isFalseAlarm, int responseSteps) {
         // już zajęty, nie można dysponować
     }
 }

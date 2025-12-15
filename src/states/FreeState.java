@@ -8,8 +8,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class FreeState implements ICarState {
 
-    // stała określająca, jak daleko od bazy wyjeżdża auto (w stopniach lat/lon)
-    private static final double DISPATCH_OFFSET = 0.0001;
+    // ZMIANA: zwiększenie stałej, aby wizualnie samochody się oddzieliły
+    private static final double DISPATCH_OFFSET = 0.0003; // W stopniach (Lat/Lon)
 
     @Override
     public CarStatus getStatus() {
@@ -22,22 +22,54 @@ public class FreeState implements ICarState {
     }
 
     @Override
-    public void dispatch(Car car, Vector2D destination, boolean isFalseAlarm) {
-        // zmiana stanu z wolny na w drodze
-        car.setTargetPosition(destination);
+    // ZMIANA: Dodanie 'responseSteps'
+    public void dispatch(Car car, Vector2D destination, boolean isFalseAlarm, int responseSteps) {
+        // Tylko w stanie FREE możemy zmienić stan
 
-        // ustawienie pozycji startowej nieco poza JRG, aby samochód faktycznie "wyjechał"
+        // 1. Ustalenie unikalnej pozycji wyjazdu (aby kropki się nie pokrywały)
         Vector2D home = car.getHomePosition();
-        double offsetX = ThreadLocalRandom.current().nextDouble(-DISPATCH_OFFSET, DISPATCH_OFFSET);
-        double offsetY = ThreadLocalRandom.current().nextDouble(-DISPATCH_OFFSET, DISPATCH_OFFSET);
+        String carId = car.getId();
+        int carIndex = Integer.parseInt(carId.substring(carId.lastIndexOf('-') + 1));
 
-        // upewniamy się, że nie wyjedzie zbyt daleko poza JRG
+        // Rozmieszczenie samochodów w prostym wzorze wokół JRG
+        double offsetX = 0;
+        double offsetY = 0;
+
+        double stepOffset = DISPATCH_OFFSET * (carIndex % 5 == 0 ? 0.5 : 1.0);
+
+        switch (carIndex % 5) {
+            case 1:
+                offsetX = stepOffset;
+                offsetY = 0;
+                break;
+            case 2:
+                offsetX = 0;
+                offsetY = stepOffset;
+                break;
+            case 3:
+                offsetX = -stepOffset;
+                offsetY = 0;
+                break;
+            case 4:
+                offsetX = 0;
+                offsetY = -stepOffset;
+                break;
+            case 0: // 5
+                offsetX = stepOffset;
+                offsetY = stepOffset;
+                break;
+        }
+
         double startLat = home.getComponents()[0] + offsetX;
         double startLon = home.getComponents()[1] + offsetY;
 
-        // ustawienie Car.startPosition następuje w Car.dispatch
+        // Ustawienie bieżącej pozycji na lekko przesuniętą pozycję startową
         car.setCurrentPosition(new Vector2D(startLat, startLon));
 
-        car.setState(new BusyGoingState(isFalseAlarm, true)); // true = jedzie na zdarzenie
+        // car.startPosition zostało ustawione w Car.dispatch na starą pozycję (home)
+        // car.targetPosition zostało ustawione w Car.dispatch na destination
+
+        // 2. Zmiana stanu
+        car.setState(new BusyGoingState(responseSteps, true)); // true = jedzie na zdarzenie
     }
 }

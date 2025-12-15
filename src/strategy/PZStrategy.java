@@ -6,29 +6,26 @@ import interfaces.IDispatchStrategy;
 import models.Car;
 import models.Incident;
 import models.JRG;
+
 import java.util.List;
 
-// Strategia: dysponowanie 3 samochodów dla Pożaru (PZ)
 public class PZStrategy implements IDispatchStrategy {
+
     @Override
-    public void executeDispatch(Incident incident, List<JRG> jrgs, boolean isFalseAlarm) {
+    public List<Car> selectCars(Incident incident, List<JRG> jrgs) {
+
         int requiredCars = SimulationConstants.PZ_CAR_COUNT;
+        ClosestJRGIterator it =
+                new ClosestJRGIterator(jrgs, incident.getPosition());
 
-        ClosestJRGIterator iterator = new ClosestJRGIterator(jrgs, incident.getPosition());
+        while (it.hasNext()) {
+            JRG jrg = it.next();
+            List<Car> freeCars = jrg.getFreeCars(requiredCars);
 
-        while (iterator.hasNext()) {
-            JRG jrg = iterator.next();
-
-            List<Car> carsToDispatch = jrg.getFreeCars(requiredCars);
-
-            if (carsToDispatch.size() >= requiredCars) {
-                // dysponowanie
-                for (Car car : carsToDispatch) {
-                    // przekazanie do samochodu, czy to jest AF
-                    car.dispatch(incident.getPosition(), isFalseAlarm);
-                }
-                return;
+            if (freeCars.size() >= requiredCars) {
+                return freeCars;
             }
         }
+        return List.of();
     }
 }
