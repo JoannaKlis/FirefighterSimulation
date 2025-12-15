@@ -4,23 +4,55 @@ import constants.AreaConstants;
 import constants.SimulationConstants;
 import implementation.Vector2D;
 import interfaces.IDispatchStrategy;
+import interfaces.IObserver;
+import interfaces.ISubject;
 import strategy.MZStrategy;
 import strategy.PZStrategy;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class SKKM {
+public class SKKM implements ISubject {
 
     private final List<JRG> jrgs;
 
     private Incident lastReportedIncident;
     private IncidentType lastVisualizedIncidentType;
-
     private IncidentAction activeAction;
+
+    // ===== OBSERVER =====
+    private final List<IObserver> observers = new ArrayList<>();
 
     public SKKM(List<JRG> jrgs) {
         this.jrgs = jrgs;
+    }
+
+    // =======================
+    // OBSERVER – SUBJECT
+    // =======================
+    @Override
+    public void addObserver(IObserver observer) {
+        observers.add(observer);
+    }
+
+    @Override
+    public void removeObserver(IObserver observer) {
+        observers.remove(observer);
+    }
+
+    @Override
+    public void notifyIncidentReported() {
+        for (IObserver o : observers) {
+            o.onIncidentReported(lastReportedIncident);
+        }
+    }
+
+    @Override
+    public void notifyIncidentCleared() {
+        for (IObserver o : observers) {
+            o.onIncidentCleared();
+        }
     }
 
     // =======================
@@ -55,6 +87,8 @@ public class SKKM {
         this.lastReportedIncident = incident;
         this.lastVisualizedIncidentType = reportedType;
 
+        notifyIncidentReported();
+
         return incident;
     }
 
@@ -87,7 +121,7 @@ public class SKKM {
     }
 
     // =======================
-    // AKTUALIZACJA AKCJI
+    // AKTUALIZACJA
     // =======================
     public void update() {
         if (activeAction == null) return;
@@ -98,6 +132,8 @@ public class SKKM {
             activeAction = null;
             lastReportedIncident = null;
             lastVisualizedIncidentType = null;
+
+            notifyIncidentCleared();
         }
     }
 

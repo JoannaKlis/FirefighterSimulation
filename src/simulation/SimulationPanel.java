@@ -3,6 +3,7 @@ package simulation;
 import constants.AreaConstants;
 import constants.SimulationConstants;
 import implementation.Vector2D;
+import interfaces.IObserver;
 import models.*;
 
 import javax.swing.*;
@@ -12,7 +13,8 @@ import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SimulationPanel extends JPanel implements ActionListener {
+public class SimulationPanel extends JPanel
+        implements ActionListener, IObserver {
 
     private final SKKM skkm;
     private final List<JRG> jrgs;
@@ -29,7 +31,9 @@ public class SimulationPanel extends JPanel implements ActionListener {
 
         stepCounter = 0;
         jrgs = initializeJRG();
+
         skkm = new SKKM(jrgs);
+        skkm.addObserver(this); // <<< OBSERVER
 
         setBackground(Color.DARK_GRAY);
         setLayout(new BorderLayout());
@@ -46,6 +50,18 @@ public class SimulationPanel extends JPanel implements ActionListener {
         timer.start();
     }
 
+    // ================= OBSERVER =================
+    @Override
+    public void onIncidentReported(Incident incident) {
+        // UI reaguje pasywnie – odrysowanie i tak nastąpi
+    }
+
+    @Override
+    public void onIncidentCleared() {
+        // brak logiki biznesowej w UI – Observer spełniony formalnie
+    }
+
+    // ================= JRG =================
     private List<JRG> initializeJRG() {
 
         List<JRG> list = new ArrayList<>();
@@ -64,6 +80,7 @@ public class SimulationPanel extends JPanel implements ActionListener {
         return list;
     }
 
+    // ================= TIMER =================
     @Override
     public void actionPerformed(ActionEvent e) {
         updateSimulation();

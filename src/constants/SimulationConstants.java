@@ -7,9 +7,6 @@ public class SimulationConstants {
     public static final int STEPS_PER_SECOND = 25;
     public static final int SIMULATION_DELAY_MS = 1000 / STEPS_PER_SECOND;
 
-    // STAŁA OPÓŹNIENIA DLA KOLEJNYCH SAMOCHODÓW
-    public static final int DISPATCH_OFFSET_STEPS = STEPS_PER_SECOND / 4;
-
     // LOGIKA ZGŁOSZEŃ
     public static final double PZ_PROBABILITY = 0.30; // Pożar 30%, Miejscowe zagrożenie 70% bo (1-PZ)
     public static final double AF_PROBABILITY = 0.05; // Fałszywy alarm 5%
