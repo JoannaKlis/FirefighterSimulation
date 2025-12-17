@@ -22,7 +22,7 @@ public class SKKM implements ISubject {
         this.jrgs = jrgs;
     }
 
-    // Dodanie zgłoszenia do kolejki
+    // dodanie zgłoszenia do kolejki
     public void receiveCall() {
         double lat = ThreadLocalRandom.current().nextDouble(AreaConstants.INCIDENT_MIN_LATITUDE, AreaConstants.INCIDENT_MAX_LATITUDE);
         double lon = ThreadLocalRandom.current().nextDouble(AreaConstants.INCIDENT_MIN_LONGITUDE, AreaConstants.INCIDENT_MAX_LONGITUDE);
@@ -31,14 +31,14 @@ public class SKKM implements ISubject {
         boolean isFalseAlarm = ThreadLocalRandom.current().nextDouble() < SimulationConstants.AF_PROBABILITY;
 
         Incident incident = new Incident(isFalseAlarm ? IncidentType.AF : reportedType, new Vector2D(lat, lon));
-        incident.setVisualizedType(reportedType); // Dodaj pole w klasie Incident do przechowywania typu dla UI
+        incident.setVisualizedType(reportedType);
 
         waitingIncidents.add(incident);
         notifyIncidentReported(incident);
     }
 
     public void update() {
-        // 1. Próbuj obsłużyć zdarzenia z kolejki
+        // obsługa zdarzenia z kolejki
         Iterator<Incident> queueIt = waitingIncidents.iterator();
         while (queueIt.hasNext()) {
             Incident incident = queueIt.next();
@@ -47,7 +47,7 @@ public class SKKM implements ISubject {
             }
         }
 
-        // 2. Aktualizuj trwające akcje
+        // aktualizacja trwającej akcji
         Iterator<IncidentAction> actionIt = activeActions.iterator();
         while (actionIt.hasNext()) {
             IncidentAction action = actionIt.next();
@@ -69,16 +69,14 @@ public class SKKM implements ISubject {
             activeActions.add(action);
             return true;
         }
-        return false; // Brak wolnych samochodów, zostaje w kolejce
+        return false; // brak wolnych samochodów, zostaje w kolejce
     }
 
-    // Metody obserwatora i gettery dostosowane do list
+    // obserwator i gettery dostosowane do list
     public List<IncidentAction> getActiveActions() { return activeActions; }
     public Queue<Incident> getWaitingIncidents() { return waitingIncidents; }
 
     @Override public void addObserver(IObserver o) { observers.add(o); }
-    @Override public void removeObserver(IObserver o) { observers.remove(o); }
-    @Override public void notifyIncidentReported() {} // Nieużywane w tej formie
     private void notifyIncidentReported(Incident i) { observers.forEach(o -> o.onIncidentReported(i)); }
     @Override public void notifyIncidentCleared() { observers.forEach(IObserver::onIncidentCleared); }
 }

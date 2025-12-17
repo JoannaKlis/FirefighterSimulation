@@ -22,7 +22,7 @@ public class SimulationPanel extends JPanel
     private int stepCounter;
     private final Timer timer;
 
-    // ===== LEGENDA =====
+    // legenda
     private static final int LEGEND_X = 10;
     private static final int LEGEND_Y_START = 40;
     private static final int LEGEND_LINE = 14;
@@ -33,7 +33,7 @@ public class SimulationPanel extends JPanel
         jrgs = initializeJRG();
 
         skkm = new SKKM(jrgs);
-        skkm.addObserver(this); // <<< OBSERVER
+        skkm.addObserver(this); // obserwator
 
         setBackground(Color.DARK_GRAY);
         setLayout(new BorderLayout());
@@ -50,18 +50,16 @@ public class SimulationPanel extends JPanel
         timer.start();
     }
 
-    // ================= OBSERVER =================
+    // obserwator
     @Override
     public void onIncidentReported(Incident incident) {
-        // UI reaguje pasywnie – odrysowanie i tak nastąpi
     }
 
     @Override
     public void onIncidentCleared() {
-        // brak logiki biznesowej w UI – Observer spełniony formalnie
     }
 
-    // ================= JRG =================
+    // JRG
     private List<JRG> initializeJRG() {
 
         List<JRG> list = new ArrayList<>();
@@ -80,7 +78,6 @@ public class SimulationPanel extends JPanel
         return list;
     }
 
-    // ================= TIMER =================
     @Override
     public void actionPerformed(ActionEvent e) {
         updateSimulation();
@@ -90,7 +87,6 @@ public class SimulationPanel extends JPanel
     private void updateSimulation() {
         stepCounter++;
 
-        // Zdarzenie co 10 sekund, niezależnie od innych akcji
         if (stepCounter % SimulationConstants.CALL_INTERVAL_STEPS == 0) {
             skkm.receiveCall();
         }
@@ -111,7 +107,7 @@ public class SimulationPanel extends JPanel
         drawLegend(g2);
         drawIncidentArea(g2, w, h);
 
-        // Rysowanie wszystkich oczekujących i trwających zdarzeń
+        // rysowanie wszystkich oczekujących i trwających zdarzeń
         for (Incident inc : skkm.getWaitingIncidents()) {
             drawIncident(g2, inc, inc.getVisualizedType(), w, h);
         }
@@ -124,7 +120,7 @@ public class SimulationPanel extends JPanel
         }
     }
 
-    // ===== TIMER =====
+    // timer
     private void drawTimer(Graphics2D g) {
 
         int seconds = stepCounter / SimulationConstants.STEPS_PER_SECOND;
@@ -133,7 +129,7 @@ public class SimulationPanel extends JPanel
         g.drawString("Czas symulacji: " + seconds + " s", LEGEND_X, 20);
     }
 
-    // ===== LEGENDA =====
+    // rysowanie legendy
     private void drawLegend(Graphics2D g) {
 
         int y = LEGEND_Y_START;
@@ -153,25 +149,25 @@ public class SimulationPanel extends JPanel
         g.drawString("Zdarzenia:", LEGEND_X, y);
         y += LEGEND_LINE;
 
-        // ===== PZ – prawdziwe zdarzenie =====
+        // PZ prawdziwe
         drawLegendPZ(g, Color.GREEN, y);
         g.setColor(Color.WHITE);
         g.drawString("Pożar (PZ)", LEGEND_X + 14, y + 6);
         y += LEGEND_LINE;
 
-        // ===== PZ – FAŁSZYWY ALARM =====
+        // PZ fałszywy alarm
         drawLegendPZ(g, Color.RED, y);
         g.setColor(Color.WHITE);
         g.drawString("Pożar – FA", LEGEND_X + 14, y + 6);
         y += LEGEND_LINE;
 
-        // ===== MZ – prawdziwe zdarzenie =====
+        // MZ prawdziwe
         drawLegendMZ(g, Color.GREEN, y);
         g.setColor(Color.WHITE);
         g.drawString("Miejscowe zagrożenie (MZ)", LEGEND_X + 14, y + 6);
         y += LEGEND_LINE;
 
-        // ===== MZ – FAŁSZYWY ALARM =====
+        // MZ fałszywy alarm
         drawLegendMZ(g, Color.RED, y);
         g.setColor(Color.WHITE);
         g.drawString("MZ – FA", LEGEND_X + 14, y + 6);
@@ -211,7 +207,7 @@ public class SimulationPanel extends JPanel
         g.drawString(label, LEGEND_X + 12, y);
     }
 
-    // ===== OBSZAR ZDARZEŃ =====
+    // obszar zdarzeń
     private void drawIncidentArea(Graphics2D g, int w, int h) {
 
         Point nw = geoToPixel(
@@ -230,7 +226,7 @@ public class SimulationPanel extends JPanel
         g.drawRect(nw.x, nw.y, se.x - nw.x, se.y - nw.y);
     }
 
-    // ===== ZDARZENIE =====
+    // zdarzenie
     private void drawIncident(Graphics2D g, Incident incident,
                               IncidentType visualType, int w, int h) {
 
@@ -256,7 +252,7 @@ public class SimulationPanel extends JPanel
         g.draw(shape);
     }
 
-    // ===== JRG + PASEK =====
+    // pasek zasobów JRG
     private void drawJRG(Graphics2D g, JRG jrg, int w, int h) {
 
         Vector2D pos = jrg.getPosition();

@@ -7,7 +7,6 @@ import models.CarStatus;
 
 public class BusyActionState implements ICarState {
 
-    // Stan staje się pasywny - nie ma już własnego licznika remainingSteps
     public BusyActionState() {
     }
 
@@ -18,7 +17,7 @@ public class BusyActionState implements ICarState {
 
     @Override
     public void update(Car car) {
-        // Puste - czekamy, aż IncidentAction wywoła car.initiateReturn()
+        // czeka, aż IncidentAction wywoła car.initiateReturn()
     }
 
     @Override

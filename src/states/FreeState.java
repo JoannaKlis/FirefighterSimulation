@@ -4,12 +4,10 @@ import implementation.Vector2D;
 import interfaces.ICarState;
 import models.Car;
 import models.CarStatus;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class FreeState implements ICarState {
 
-    // ZMIANA: zwiększenie stałej, aby wizualnie samochody się oddzieliły
-    private static final double DISPATCH_OFFSET = 0.0003; // W stopniach (Lat/Lon)
+    private static final double DISPATCH_OFFSET = 0.0003;
 
     @Override
     public CarStatus getStatus() {
@@ -22,11 +20,8 @@ public class FreeState implements ICarState {
     }
 
     @Override
-    // ZMIANA: Dodanie 'responseSteps'
     public void dispatch(Car car, Vector2D destination, boolean isFalseAlarm, int responseSteps) {
-        // Tylko w stanie FREE możemy zmienić stan
-
-        // 1. Ustalenie unikalnej pozycji wyjazdu (aby kropki się nie pokrywały)
+        // tylko w stanie FREE możemy zmienić stan
         Vector2D home = car.getHomePosition();
         String carId = car.getId();
         int carIndex = Integer.parseInt(carId.substring(carId.lastIndexOf('-') + 1));
@@ -63,13 +58,10 @@ public class FreeState implements ICarState {
         double startLat = home.getComponents()[0] + offsetX;
         double startLon = home.getComponents()[1] + offsetY;
 
-        // Ustawienie bieżącej pozycji na lekko przesuniętą pozycję startową
+        // ustawienie bieżącej pozycji na lekko przesuniętą pozycję startową
         car.setCurrentPosition(new Vector2D(startLat, startLon));
 
-        // car.startPosition zostało ustawione w Car.dispatch na starą pozycję (home)
-        // car.targetPosition zostało ustawione w Car.dispatch na destination
-
-        // 2. Zmiana stanu
+        // zmiana stanu
         car.setState(new BusyGoingState(responseSteps, true)); // true = jedzie na zdarzenie
     }
 }

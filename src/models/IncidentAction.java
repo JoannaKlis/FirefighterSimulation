@@ -25,14 +25,13 @@ public class IncidentAction {
     }
 
     public void startGoing(int responseSteps) {
-        // Odstęp między samochodami (ok. 0.4 - 0.6 sekundy przy 25 FPS)
+        // odstęp między samochodami (ok. 0.4 - 0.6 sekundy przy 25 FPS)
         int delayBetweenCars = 12;
 
         for (int i = 0; i < cars.size(); i++) {
             Car car = cars.get(i);
 
-            // Każdy kolejny samochód dostaje o 'delayBetweenCars' więcej kroków na dojazd.
-            // Powoduje to, że jadą w szyku jeden za drugim.
+            // kolejny samochód dostaje o 'delayBetweenCars' więcej kroków na dojazd (aby jechały jeden za drugim w wizualizacji)
             int individualResponseSteps = responseSteps + (i * delayBetweenCars);
 
             car.dispatch(incident.getPosition(), falseAlarm, individualResponseSteps);
@@ -47,15 +46,13 @@ public class IncidentAction {
                         startReturn();
                     } else {
                         phase = Phase.ACTION;
-                        // Opcjonalnie: upewnij się, że actionSteps jest wylosowane raz dla całej akcji
-                        // (To już robisz w konstruktorze IncidentAction)
                     }
                 }
             }
             case ACTION -> {
-                actionSteps--; // Ten licznik bije dla całej grupy jednocześnie
+                actionSteps--; // jeden licznik dla całej grupy samochodów, które wyjechały jednocześnie
                 if (actionSteps <= 0) {
-                    startReturn(); // Wywołuje powrót dla wszystkich z zachowaniem kolumny
+                    startReturn(); // powrót dla wszystkich z zachowaniem kolumny
                 }
             }
             case RETURN -> {
@@ -67,12 +64,11 @@ public class IncidentAction {
     }
 
     private void startReturn() {
-        int delayBetweenCars = 12; // ok. 0.6 sekundy odstępu między autami (15 kroków / 25 fps)
+        int delayBetweenCars = 12;
 
         for (int i = 0; i < cars.size(); i++) {
             Car car = cars.get(i);
-            // Każdy kolejny samochód ma o 'delayBetweenCars' więcej kroków do celu
-            // dzięki temu nie najeżdżają na siebie i wracają w szyku
+            // kolejny samochód dostaje o 'delayBetweenCars' więcej kroków na dojazd (aby jechały jeden za drugim w wizualizacji)
             int individualReturnSteps = returnSteps + (i * delayBetweenCars);
             car.initiateReturn(individualReturnSteps);
         }

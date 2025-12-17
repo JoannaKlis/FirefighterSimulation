@@ -17,15 +17,14 @@ public class PZStrategy implements IDispatchStrategy {
         int requiredCars = SimulationConstants.PZ_CAR_COUNT;
         List<Car> selectedCars = new ArrayList<>();
 
-        // Iterator posortowany od najbliższej JRG
+        // iterator posortowany od najbliższej JRG
         ClosestJRGIterator it = new ClosestJRGIterator(jrgs, incident.getPosition());
 
         while (it.hasNext() && selectedCars.size() < requiredCars) {
             JRG jrg = it.next();
             int stillNeeded = requiredCars - selectedCars.size();
 
-            // Pobieramy tyle wolnych aut, ile jest dostępnych w tej jednostce
-            // (ale nie więcej niż nam brakuje)
+            // pobieramy tyle wolnych aut, ile jest dostępnych w tej jednostce (ale nie więcej niż nam brakuje)
             List<Car> availableInJrg = jrg.getFreeCars(5); // pobierz listę wszystkich wolnych
 
             for (int i = 0; i < availableInJrg.size() && selectedCars.size() < requiredCars; i++) {
@@ -33,11 +32,11 @@ public class PZStrategy implements IDispatchStrategy {
             }
         }
 
-        // Zwracamy listę tylko jeśli udało się zebrać pełny skład
+        // zwracamy listę tylko jeśli udało się zebrać pełny skład
         if (selectedCars.size() == requiredCars) {
             return selectedCars;
         } else {
-            return List.of(); // Jeśli brakuje aut w całym mieście, czekamy w kolejce
+            return List.of(); // jeśli brakuje aut w całym mieście, czekamy w kolejce
         }
     }
 }

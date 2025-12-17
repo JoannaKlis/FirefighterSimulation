@@ -1,7 +1,6 @@
 package models;
 
 import implementation.Vector2D;
-import constants.SimulationConstants;
 
 public class Incident {
     private final IncidentType type; // Rzeczywisty (PZ, MZ, AF)
@@ -13,7 +12,7 @@ public class Incident {
         this.position = position;
     }
 
-    // Ten getter jest potrzebny dla SimulationPanel
+    // getter dla SimulationPanel
     public IncidentType getType() {
         return type;
     }
@@ -28,10 +27,5 @@ public class Incident {
 
     public Vector2D getPosition() {
         return position;
-    }
-
-    public int getRequiredCars() {
-        if (type == IncidentType.PZ) return SimulationConstants.PZ_CAR_COUNT;
-        return SimulationConstants.MZ_CAR_COUNT;
     }
 }

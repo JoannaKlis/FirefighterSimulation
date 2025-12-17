@@ -18,7 +18,6 @@ public class Car {
     private boolean isActualFalseAlarm;
 
     public Car(String id, Vector2D homePosition) {
-// ... (pozostała część konstruktora bez zmian)
         this.id = id;
         this.homePosition = homePosition;
         this.currentPosition = homePosition;
@@ -29,27 +28,24 @@ public class Car {
 
     public void update() { currentState.update(this); }
 
-    // ZMIANA: Przywrócenie metody dispatch, która deleguje wywołanie do stanu
+    // wywołanie do stanu
     public void dispatch(Vector2D destination, boolean isFalseAlarm, int responseSteps) {
-        // Ustawienie informacji o celu i FA
+        // ustawienie informacji o celu i AF
         this.setTargetPosition(destination);
         this.isActualFalseAlarm = isFalseAlarm;
 
-        // Ustawienie aktualnej pozycji jako punktu startowego
-        // (to jest kluczowe dla interpolacji w BusyGoingState,
-        // a FreeState nadpisze ją na pozycję wyjazdową)
+        // aktualna pozycja jako punkt startowy
         this.startPosition = this.currentPosition;
 
-        // Delegowanie wywołania do aktualnego stanu.
-        // Tylko FreeState faktycznie przełączy się na BusyGoingState.
+        // tylko FreeState faktycznie przełączy się na BusyGoingState
         currentState.dispatch(this, destination, isFalseAlarm, responseSteps);
     }
 
-    // ZMIANA: Nowa, uproszczona metoda, która obsługuje inicjację ruchu powrotnego
+    // ruchu powrotny samochodów
     public void initiateReturn(int responseSteps) {
         this.startPosition = this.currentPosition;
         this.setTargetPosition(this.homePosition);
-        // Przechodzimy bezpośrednio do stanu powrotu (false = nie jedzie na zdarzenie)
+        // przejście bezpośrednio do stanu powrotu (false = nie jedzie na zdarzenie)
         this.setState(new states.BusyGoingState(responseSteps, false));
     }
 

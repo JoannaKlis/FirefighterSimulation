@@ -6,14 +6,13 @@ import interfaces.ICarState;
 import models.Car;
 import models.CarStatus;
 
-// Stan: samochód zajęty (w drodze na akcję lub w drodze powrotnej)
 public class BusyGoingState implements ICarState {
     private int remainingSteps;
     private final boolean goingToIncident;
 
     private final int totalSteps; // do płynnej animacji
 
-    // ZMIANA: Konstruktor przyjmuje responseSteps
+    // konstruktor przyjmuje responseSteps
     public BusyGoingState(int responseSteps, boolean goingToIncident) {
         this.remainingSteps = responseSteps;
         if (this.remainingSteps <= 0) this.remainingSteps = 1;
@@ -36,17 +35,14 @@ public class BusyGoingState implements ICarState {
 
         remainingSteps--;
 
-        // fragment w update() klasy BusyGoingState
         if (remainingSteps <= 0) {
             car.setCurrentPosition(car.getTargetPosition());
             if (goingToIncident) {
                 if (car.isActualFalseAlarm()) {
-                    // Przy FA pozwalamy mu wrócić od razu, ale IncidentAction
-                    // i tak zazwyczaj obsłuży to przez startReturn()
+                    // przy AF samochód wraca natychmiast
                     int returnSteps = SimulationConstants.getRandomResponseSteps();
                     car.initiateReturn(returnSteps);
                 } else {
-                    // Przejście w stan akcji i czekanie na rozkaz z IncidentAction
                     car.setState(new BusyActionState());
                 }
             } else {
@@ -69,15 +65,13 @@ public class BusyGoingState implements ICarState {
             return;
         }
 
-        // Standardowa interpolacja
+        // standardowa interpolacja
         double latDiff = target.getComponents()[0] - start.getComponents()[0];
         double lonDiff = target.getComponents()[1] - start.getComponents()[1];
 
         double newLat = start.getComponents()[0] + latDiff * ratio;
         double newLon = start.getComponents()[1] + lonDiff * ratio;
 
-        // DODATEK: Lekkie przesunięcie wizualne zależne od ID samochodu,
-        // żeby kropki nie jechały idealnie po tej samej linii (opcjonalnie)
         int carIndex = Integer.parseInt(car.getId().substring(car.getId().lastIndexOf('-') + 1));
         newLat += (carIndex * 0.00005);
 
@@ -85,7 +79,6 @@ public class BusyGoingState implements ICarState {
     }
 
     @Override
-    // ZMIANA: Dostosowanie sygnatury do ICarState
     public void dispatch(Car car, Vector2D destination, boolean isFalseAlarm, int responseSteps) {
         // już zajęty, nie można dysponować
     }
