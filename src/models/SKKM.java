@@ -9,146 +9,76 @@ import interfaces.ISubject;
 import strategy.MZStrategy;
 import strategy.PZStrategy;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class SKKM implements ISubject {
-
     private final List<JRG> jrgs;
-
-    private Incident lastReportedIncident;
-    private IncidentType lastVisualizedIncidentType;
-    private IncidentAction activeAction;
-
-    // ===== OBSERVER =====
+    private final List<IncidentAction> activeActions = new ArrayList<>();
+    private final Queue<Incident> waitingIncidents = new LinkedList<>();
     private final List<IObserver> observers = new ArrayList<>();
 
     public SKKM(List<JRG> jrgs) {
         this.jrgs = jrgs;
     }
 
-    // =======================
-    // OBSERVER – SUBJECT
-    // =======================
-    @Override
-    public void addObserver(IObserver observer) {
-        observers.add(observer);
+    // Dodanie zgłoszenia do kolejki
+    public void receiveCall() {
+        double lat = ThreadLocalRandom.current().nextDouble(AreaConstants.INCIDENT_MIN_LATITUDE, AreaConstants.INCIDENT_MAX_LATITUDE);
+        double lon = ThreadLocalRandom.current().nextDouble(AreaConstants.INCIDENT_MIN_LONGITUDE, AreaConstants.INCIDENT_MAX_LONGITUDE);
+
+        IncidentType reportedType = ThreadLocalRandom.current().nextDouble() < SimulationConstants.PZ_PROBABILITY ? IncidentType.PZ : IncidentType.MZ;
+        boolean isFalseAlarm = ThreadLocalRandom.current().nextDouble() < SimulationConstants.AF_PROBABILITY;
+
+        Incident incident = new Incident(isFalseAlarm ? IncidentType.AF : reportedType, new Vector2D(lat, lon));
+        incident.setVisualizedType(reportedType); // Dodaj pole w klasie Incident do przechowywania typu dla UI
+
+        waitingIncidents.add(incident);
+        notifyIncidentReported(incident);
     }
 
-    @Override
-    public void removeObserver(IObserver observer) {
-        observers.remove(observer);
-    }
-
-    @Override
-    public void notifyIncidentReported() {
-        for (IObserver o : observers) {
-            o.onIncidentReported(lastReportedIncident);
-        }
-    }
-
-    @Override
-    public void notifyIncidentCleared() {
-        for (IObserver o : observers) {
-            o.onIncidentCleared();
-        }
-    }
-
-    // =======================
-    // ODBIÓR ZGŁOSZENIA
-    // =======================
-    public Incident receiveCall() {
-
-        double lat = ThreadLocalRandom.current().nextDouble(
-                AreaConstants.INCIDENT_MIN_LATITUDE,
-                AreaConstants.INCIDENT_MAX_LATITUDE
-        );
-        double lon = ThreadLocalRandom.current().nextDouble(
-                AreaConstants.INCIDENT_MIN_LONGITUDE,
-                AreaConstants.INCIDENT_MAX_LONGITUDE
-        );
-
-        Vector2D pos = new Vector2D(lat, lon);
-
-        IncidentType reportedType =
-                ThreadLocalRandom.current().nextDouble() < SimulationConstants.PZ_PROBABILITY
-                        ? IncidentType.PZ
-                        : IncidentType.MZ;
-
-        boolean isFalseAlarm =
-                ThreadLocalRandom.current().nextDouble() < SimulationConstants.AF_PROBABILITY;
-
-        Incident incident = new Incident(
-                isFalseAlarm ? IncidentType.AF : reportedType,
-                pos
-        );
-
-        this.lastReportedIncident = incident;
-        this.lastVisualizedIncidentType = reportedType;
-
-        notifyIncidentReported();
-
-        return incident;
-    }
-
-    // =======================
-    // DYSPONOWANIE
-    // =======================
-    public void handleIncident(Incident incident) {
-
-        IDispatchStrategy strategy =
-                lastVisualizedIncidentType == IncidentType.PZ
-                        ? new PZStrategy()
-                        : new MZStrategy();
-
-        boolean isFalseAlarm = incident.getType() == IncidentType.AF;
-
-        List<Car> dispatchedCars =
-                strategy.selectCars(incident, jrgs);
-
-        if (dispatchedCars.isEmpty()) return;
-
-        int responseSteps = SimulationConstants.getRandomResponseSteps();
-
-        activeAction = new IncidentAction(
-                incident,
-                dispatchedCars,
-                isFalseAlarm
-        );
-
-        activeAction.startGoing(responseSteps);
-    }
-
-    // =======================
-    // AKTUALIZACJA
-    // =======================
     public void update() {
-        if (activeAction == null) return;
+        // 1. Próbuj obsłużyć zdarzenia z kolejki
+        Iterator<Incident> queueIt = waitingIncidents.iterator();
+        while (queueIt.hasNext()) {
+            Incident incident = queueIt.next();
+            if (tryDispatch(incident)) {
+                queueIt.remove();
+            }
+        }
 
-        activeAction.update();
-
-        if (activeAction.isDone()) {
-            activeAction = null;
-            lastReportedIncident = null;
-            lastVisualizedIncidentType = null;
-
-            notifyIncidentCleared();
+        // 2. Aktualizuj trwające akcje
+        Iterator<IncidentAction> actionIt = activeActions.iterator();
+        while (actionIt.hasNext()) {
+            IncidentAction action = actionIt.next();
+            action.update();
+            if (action.isDone()) {
+                actionIt.remove();
+                notifyIncidentCleared();
+            }
         }
     }
 
-    // =======================
-    // GETTERY
-    // =======================
-    public boolean hasActiveAction() {
-        return activeAction != null;
+    private boolean tryDispatch(Incident incident) {
+        IDispatchStrategy strategy = (incident.getVisualizedType() == IncidentType.PZ) ? new PZStrategy() : new MZStrategy();
+        List<Car> dispatchedCars = strategy.selectCars(incident, jrgs);
+
+        if (!dispatchedCars.isEmpty()) {
+            IncidentAction action = new IncidentAction(incident, dispatchedCars, incident.getType() == IncidentType.AF);
+            action.startGoing(SimulationConstants.getRandomResponseSteps());
+            activeActions.add(action);
+            return true;
+        }
+        return false; // Brak wolnych samochodów, zostaje w kolejce
     }
 
-    public Incident getLastReportedIncident() {
-        return lastReportedIncident;
-    }
+    // Metody obserwatora i gettery dostosowane do list
+    public List<IncidentAction> getActiveActions() { return activeActions; }
+    public Queue<Incident> getWaitingIncidents() { return waitingIncidents; }
 
-    public IncidentType getLastVisualizedIncidentType() {
-        return lastVisualizedIncidentType;
-    }
+    @Override public void addObserver(IObserver o) { observers.add(o); }
+    @Override public void removeObserver(IObserver o) { observers.remove(o); }
+    @Override public void notifyIncidentReported() {} // Nieużywane w tej formie
+    private void notifyIncidentReported(Incident i) { observers.forEach(o -> o.onIncidentReported(i)); }
+    @Override public void notifyIncidentCleared() { observers.forEach(IObserver::onIncidentCleared); }
 }

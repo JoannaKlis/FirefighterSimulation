@@ -36,28 +36,22 @@ public class BusyGoingState implements ICarState {
 
         remainingSteps--;
 
+        // fragment w update() klasy BusyGoingState
         if (remainingSteps <= 0) {
-            // samochód dotarł do celu
             car.setCurrentPosition(car.getTargetPosition());
-
             if (goingToIncident) {
-                // dojechał na miejsce zdarzenia
                 if (car.isActualFalseAlarm()) {
-                    // AF - natychmiast wraca (krok 7)
-
-                    // ZMIANA: Losujemy nowy czas powrotu (0-3s)
+                    // Przy FA pozwalamy mu wrócić od razu, ale IncidentAction
+                    // i tak zazwyczaj obsłuży to przez startReturn()
                     int returnSteps = SimulationConstants.getRandomResponseSteps();
-
-                    // ZMIANA: Inicjacja powrotu
                     car.initiateReturn(returnSteps);
                 } else {
-                    // prawdziwe zdarzenie - zaczyna akcję (krok 6)
+                    // Przejście w stan akcji i czekanie na rozkaz z IncidentAction
                     car.setState(new BusyActionState());
                 }
             } else {
-                // dojechał do jednostki (powrót) (krok 8)
                 car.setState(new FreeState());
-                car.resetIncidentStatus(); // reset statusu AF po powrocie
+                car.resetIncidentStatus();
             }
         }
     }
@@ -70,19 +64,22 @@ public class BusyGoingState implements ICarState {
         if (start == null || target == null || totalSteps <= 0) return;
 
         double ratio = (double) stepsPassed / totalSteps;
-
-        // jeśli ratio >= 1.0, oznacza to, że samochód powinien już być w miejscu docelowym
         if (ratio >= 1.0) {
             car.setCurrentPosition(target);
             return;
         }
 
+        // Standardowa interpolacja
         double latDiff = target.getComponents()[0] - start.getComponents()[0];
         double lonDiff = target.getComponents()[1] - start.getComponents()[1];
 
-        // liniowa interpolacja: P_nowe = P_start + (P_cel - P_start) * ratio
         double newLat = start.getComponents()[0] + latDiff * ratio;
         double newLon = start.getComponents()[1] + lonDiff * ratio;
+
+        // DODATEK: Lekkie przesunięcie wizualne zależne od ID samochodu,
+        // żeby kropki nie jechały idealnie po tej samej linii (opcjonalnie)
+        int carIndex = Integer.parseInt(car.getId().substring(car.getId().lastIndexOf('-') + 1));
+        newLat += (carIndex * 0.00005);
 
         car.setCurrentPosition(new Vector2D(newLat, newLon));
     }

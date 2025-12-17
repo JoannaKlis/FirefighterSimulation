@@ -7,25 +7,31 @@ import models.Car;
 import models.Incident;
 import models.JRG;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class MZStrategy implements IDispatchStrategy {
 
     @Override
     public List<Car> selectCars(Incident incident, List<JRG> jrgs) {
-
         int requiredCars = SimulationConstants.MZ_CAR_COUNT;
-        ClosestJRGIterator it =
-                new ClosestJRGIterator(jrgs, incident.getPosition());
+        List<Car> selectedCars = new ArrayList<>();
 
-        while (it.hasNext()) {
+        ClosestJRGIterator it = new ClosestJRGIterator(jrgs, incident.getPosition());
+
+        while (it.hasNext() && selectedCars.size() < requiredCars) {
             JRG jrg = it.next();
-            List<Car> freeCars = jrg.getFreeCars(requiredCars);
+            List<Car> availableInJrg = jrg.getFreeCars(5);
 
-            if (freeCars.size() >= requiredCars) {
-                return freeCars;
+            for (int i = 0; i < availableInJrg.size() && selectedCars.size() < requiredCars; i++) {
+                selectedCars.add(availableInJrg.get(i));
             }
         }
-        return List.of();
+
+        if (selectedCars.size() == requiredCars) {
+            return selectedCars;
+        } else {
+            return List.of();
+        }
     }
 }

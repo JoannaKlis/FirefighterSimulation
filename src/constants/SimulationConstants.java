@@ -14,8 +14,8 @@ public class SimulationConstants {
     public static final int PZ_CAR_COUNT = 3; // Wymagane samochody na PZ
     public static final int MZ_CAR_COUNT = 2; // Wymagane samochody na MZ
 
-    // NOWE ZGŁOSZENIE (CO 10 SEKUND)
-    public static final int CALL_INTERVAL_STEPS = 10 * STEPS_PER_SECOND;
+    // NOWE ZGŁOSZENIE (CO 3 SEKUNDY)
+    public static final int CALL_INTERVAL_STEPS = 3 * STEPS_PER_SECOND;
 
     // CZAS TRWANIA AKCJI I DOJAZDU (w sekundach, Warunek 11)
     public static final int MIN_RESPONSE_TIME_S = 0;

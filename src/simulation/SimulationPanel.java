@@ -88,43 +88,35 @@ public class SimulationPanel extends JPanel
     }
 
     private void updateSimulation() {
-
         stepCounter++;
 
-        if (stepCounter % SimulationConstants.CALL_INTERVAL_STEPS == 0
-                && !skkm.hasActiveAction()) {
-
-            Incident incident = skkm.receiveCall();
-            skkm.handleIncident(incident);
+        // Zdarzenie co 10 sekund, niezależnie od innych akcji
+        if (stepCounter % SimulationConstants.CALL_INTERVAL_STEPS == 0) {
+            skkm.receiveCall();
         }
 
         for (JRG jrg : jrgs) {
             jrg.updateCars();
         }
-
         skkm.update();
     }
 
-    // ================= RYSOWANIE =================
     @Override
     protected void paintComponent(Graphics g) {
-
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
-
-        int w = getWidth();
-        int h = getHeight();
+        int w = getWidth(), h = getHeight();
 
         drawTimer(g2);
         drawLegend(g2);
         drawIncidentArea(g2, w, h);
 
-        if (skkm.getLastReportedIncident() != null) {
-            drawIncident(g2,
-                    skkm.getLastReportedIncident(),
-                    skkm.getLastVisualizedIncidentType(),
-                    w, h
-            );
+        // Rysowanie wszystkich oczekujących i trwających zdarzeń
+        for (Incident inc : skkm.getWaitingIncidents()) {
+            drawIncident(g2, inc, inc.getVisualizedType(), w, h);
+        }
+        for (IncidentAction action : skkm.getActiveActions()) {
+            drawIncident(g2, action.getIncident(), action.getIncident().getVisualizedType(), w, h);
         }
 
         for (JRG jrg : jrgs) {

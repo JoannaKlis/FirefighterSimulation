@@ -25,8 +25,17 @@ public class IncidentAction {
     }
 
     public void startGoing(int responseSteps) {
-        for (Car car : cars) {
-            car.dispatch(incident.getPosition(), falseAlarm, responseSteps);
+        // Odstęp między samochodami (ok. 0.4 - 0.6 sekundy przy 25 FPS)
+        int delayBetweenCars = 12;
+
+        for (int i = 0; i < cars.size(); i++) {
+            Car car = cars.get(i);
+
+            // Każdy kolejny samochód dostaje o 'delayBetweenCars' więcej kroków na dojazd.
+            // Powoduje to, że jadą w szyku jeden za drugim.
+            int individualResponseSteps = responseSteps + (i * delayBetweenCars);
+
+            car.dispatch(incident.getPosition(), falseAlarm, individualResponseSteps);
         }
     }
 
@@ -38,13 +47,15 @@ public class IncidentAction {
                         startReturn();
                     } else {
                         phase = Phase.ACTION;
+                        // Opcjonalnie: upewnij się, że actionSteps jest wylosowane raz dla całej akcji
+                        // (To już robisz w konstruktorze IncidentAction)
                     }
                 }
             }
             case ACTION -> {
-                actionSteps--;
+                actionSteps--; // Ten licznik bije dla całej grupy jednocześnie
                 if (actionSteps <= 0) {
-                    startReturn();
+                    startReturn(); // Wywołuje powrót dla wszystkich z zachowaniem kolumny
                 }
             }
             case RETURN -> {
@@ -56,8 +67,14 @@ public class IncidentAction {
     }
 
     private void startReturn() {
-        for (Car car : cars) {
-            car.initiateReturn(returnSteps);
+        int delayBetweenCars = 12; // ok. 0.6 sekundy odstępu między autami (15 kroków / 25 fps)
+
+        for (int i = 0; i < cars.size(); i++) {
+            Car car = cars.get(i);
+            // Każdy kolejny samochód ma o 'delayBetweenCars' więcej kroków do celu
+            // dzięki temu nie najeżdżają na siebie i wracają w szyku
+            int individualReturnSteps = returnSteps + (i * delayBetweenCars);
+            car.initiateReturn(individualReturnSteps);
         }
         phase = Phase.RETURN;
     }
@@ -76,5 +93,9 @@ public class IncidentAction {
 
     public boolean isDone() {
         return phase == Phase.DONE;
+    }
+
+    public Incident getIncident() {
+        return incident;
     }
 }
